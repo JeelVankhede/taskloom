@@ -393,3 +393,19 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Limits | Org creation 5 per user per day, join requests 10 per user per hour, member lookups 30 per org per hour; in memory |
 | Return types | `createOrganization` returns `OrganizationSummary` (id, slug, name): it runs without an organization, so org-scoped fields are not resolvable in that request. `approveJoinRequest` and `addMember` return `Member`. |
 | Input errors | Invalid or missing variables (for example an impossible `Date`) are `VALIDATION_FAILED`; ids that are not uuids are `NOT_FOUND` |
+
+### Phase 5: Seed data
+
+| Topic | Decision |
+| --- | --- |
+| Running TypeScript | Compiled with `tsc` (`tsconfig.seed.json` to `dist-seed`) and run with `node`; no new dependency |
+| Re-running | Runs once; a second run prints "Already seeded". Start over with `npm run db:reset` (local only). |
+| Atomicity | Found while building: a failed run left users behind, so "Already seeded" could lie. The whole seed is now one transaction. Deferred checks are fired under each organization's own context (`SET CONSTRAINTS ALL IMMEDIATE` at each context switch); at commit they would run under the last context and row-level security would hide the other organizations' rows. |
+| History | Every seeded change writes its event, matching what the API records |
+| Timestamps | Seeded rows are created "now"; due dates spread about 60 days around today |
+| Accounts | `owner@acme.test`, `admin@acme.test`, `member@acme.test`, `contributor@acme.test`, `departed@acme.test`, `owner@globex.test` (added: Globex needs an owner), `both@example.test` (member of both), `newbie@example.test`, `requester@example.test`; password `taskloom-demo-2026` |
+| Data mix | Status 30/20/15/10/20/5; about 5% archived; about 15% of open tasks overdue; 0 to 3 labels; even priorities; the departed member only on closed tasks |
+| Labels | Acme: bug red, feature blue, infra slate, design purple, docs teal, security orange. Globex: bug, content green, seo amber. |
+| Titles | From word lists, for example "Fix flaky login test" |
+| Safety | Refuses when `NODE_ENV=production` or the database host is not local |
+| Rank keys | Found while seeding: the Phase 1 rank keys grew one character per six top-of-column creates and passed the 128-character limit after about 770 creates in one column. Keys now use fractional indexing with a length-prefixed integer part, and a new task's key is placed before the project's lowest rank, which is below its column's first card and unique in the project. Measured: 20,000 top inserts stay at 4 characters; 3,000 creates interleaved across columns stay at 3. The migration refuses to run while any task exists (existing keys cannot be read by the new functions); local databases are rebuilt with `npm run db:reset`. Rebalance stays Designed, for dense drag-and-drop moves. |
