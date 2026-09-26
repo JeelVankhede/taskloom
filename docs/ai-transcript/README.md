@@ -12,6 +12,7 @@ The session exports in this folder are complete and unedited. This page explains
 | 4 | Schema critique | A critique of v1.1 across the five areas the brief names | [1.3-ai-critique.md](../1.3-ai-critique.md) |
 | 5 | Critique review | Each finding discussed, decided, then applied | SPEC v1.2 |
 | 6 | Audit and documentation | A second-opinion audit of the critique, v1.2 measured against the brief, the submission structure approved, the documents written | `docs/` |
+| 7 | Scaffolding | Stack, accounts, tenancy connections, and onboarding decided one at a time. Agent rules generated from my own starter recipes, then adapted to the design. Monorepo scaffolded and every gate run. | Scaffold, agent rules, [implementation plan](../implementation-plan.md), design reference v1.4 |
 
 ## Strategy
 
@@ -37,7 +38,10 @@ The session exports in this folder are complete and unedited. This page explains
 | Roles | Cut to three database roles | Kept the roles. Moved those without v1 work to Later with their features. |
 | Partitioning `tasks`, per-column rank | Adopt | Declined, with reasons in the analysis |
 | Scope in session 6 | Its plan included building the API and web app | Restricted the AI to documentation |
+| Join requests in session 7 | Offered to leave join-by-request designed, because the brief does not ask for it | Built it, with owner or admin approval, so a new user has a way into an organization |
 
 ## Where the AI Changed My Design
 
 The critique found real gaps I had missed: permissive switcher policies on the membership table (X1), a writable global `users` table (X2), two invariants the database did not enforce (C1, C2), and history that could record a stale `from` value (C3). Each is fixed and tested. The details are in [1.3-analysis.md](../1.3-analysis.md).
+
+In session 7 it argued me out of microservices. Composite tenant keys, one read snapshot per request, and row-level security all need one database and one transaction, so the API is a modular monolith. It replaced four Prisma clients with one client that switches role inside each transaction. When NestJS 12 turned out to be ESM-only, it stopped and asked before replacing Jest with Vitest. Every decision from that session is listed in the [implementation plan](../implementation-plan.md), section 2.

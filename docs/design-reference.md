@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.3. Supersedes SPEC v1.2. |
+| Version | 1.4. Supersedes 1.3. Adds accounts, organization onboarding, and join requests to the Built tier, and records the scaffolding decisions ([implementation plan](implementation-plan.md), section 2). |
 | Role | Appendix. Holds the detail that [1.2-data-model.md](1.2-data-model.md) summarizes. |
 | Delivery tiers | Built, Designed, and Later, as defined in the [README](../README.md) |
 | Review decisions | [1.3-analysis.md](1.3-analysis.md) |
 
-Test ids keep their original numbers so they match the review record. T9, T11, T12, T20, and T26 moved to Later with their features. T28 is new.
+Test ids keep their original numbers so they match the review record. T9, T11, T12, T20, and T26 moved to Later with their features. T28 is new in 1.3. T29 to T33 are new in 1.4.
 
 ## 1. Scope
 
@@ -15,8 +15,8 @@ Test ids keep their original numbers so they match the review record. T9, T11, T
 
 | Area | Included |
 |---|---|
-| Organizations | Settings (timezone, priority display names), one status template |
-| People | Global users, one membership per org, four fixed roles, deactivation instead of deletion |
+| Organizations | Created by any signed-in user, who becomes owner. Settings (timezone, priority display names), one status template |
+| People | Global users with email and password accounts, one membership per org, four fixed roles, join by request with owner or admin approval, deactivation instead of deletion |
 | Projects | Immutable keys, archive and restore |
 | Statuses | Freeform per-project columns seeded from the org template; each is open, completed, or canceled |
 | Tasks | Per-project numbers, single assignee, fixed priority scale, required due date, org-scoped labels, manual ordering, archive and restore |
@@ -36,6 +36,8 @@ Each item has an additive path. None requires a rewrite.
 | Domain events | `outbox_events` written in the mutation transaction, holding ids and event types only. A relay on the `app_relay` role sends and deletes rows, at least once. Consumers ignore duplicates by id. Serves search, cache invalidation, webhooks, and realtime. Test T26. |
 | Cross-project move | `task_aliases (org_id, project_id, number)` pointing at the task, plus a move mutation that assigns a new number. No backfill: numbers are never reused, so the first alias is written at the first move. |
 | Email invitations for non-users | `org_invitations` table. Also removes the member-lookup oracle (section 2). |
+| Email verification and password reset | `email_verified_at` on `users` and a single-use token table owned by `app_identity` |
+| External identity provider | `users.auth_subject` is reserved for it. Sign in maps the provider subject to the user. |
 | A read-only role | `viewer` value added to the role enum. Metadata-only. |
 | Persisted GraphQL operations | Registered at UI build time. No schema change. |
 | Private projects, project-level roles | `projects.visibility` plus `project_members` |
@@ -58,16 +60,22 @@ Schema-per-tenant or database-per-tenant. Hard deletion of any row that history 
 
 | Role | Tier | Row-level security | Purpose |
 |---|---|---|---|
-| `app_owner` | Built | Forced | Owns every object. Runs migrations and partition maintenance. Needs `CREATEROLE`. |
+| `app_owner` | Built | Forced | Owns every object. Runs migrations and partition maintenance. Needs `CREATEROLE`. Never a superuser, because a superuser bypasses row-level security. |
+| `app_runtime` | Built | Not applicable | The API's only login. Holds no privileges of its own. Granted `app_user` and `app_identity` `WITH INHERIT FALSE, SET TRUE`, so every transaction must `SET LOCAL ROLE` first. |
 | `app_user` | Built | Forced | API runtime. Not an owner. Cannot update project keys, identity columns, or history. |
-| `app_membership_reader` | Built | Forced, policy-scoped | Serves `viewer.memberships` only. `SELECT (id, slug, name)` on `organizations` and `SELECT (org_id, user_id, role, status)` on `org_memberships`. Policies return only the caller's memberships and those orgs. |
-| `app_identity` | Built | Forced, policy-scoped | Authentication and member lookup. `SELECT (id, auth_subject, email)`, `INSERT`, and `UPDATE (email, display_name)` on `users`. No tenant tables. |
+| `app_membership_reader` | Built | Forced, policy-scoped | Cannot log in. Owns `app.viewer_memberships()`, the only entry point for `viewer.memberships`. `SELECT (id, slug, name)` on `organizations` and `SELECT (org_id, user_id, role, status)` on `org_memberships`. Policies return only the caller's memberships and those orgs. |
+| `app_join` | Built | Forced, policy-scoped | Cannot log in. Owns `app.submit_join_request`, `app.cancel_join_request`, and `app.viewer_join_requests`. `SELECT (id, slug, name)` on `organizations` and the caller's own rows in `org_join_requests`. |
+| `app_identity` | Built | Forced, policy-scoped | Sign up, sign in, refresh tokens, and member lookup. `SELECT (id, auth_subject, email, password_hash)`, `INSERT`, and `UPDATE (email, display_name, password_hash)` on `users`, and all of `refresh_tokens`. Owns `app.lookup_user_id_by_email`. No tenant tables. |
 | `app_jobs` | Later | Forced | Auto-archive |
 | `app_discovery` | Later | Bypassed | Cannot log in. Owns the job discovery function. |
 | `app_maintenance` | Later | Forced | Org purge. The only role that can delete history. |
 | `app_relay` | Later | Forced, policy-scoped | Outbox relay. `SELECT` and `DELETE` on `outbox_events` only. |
 
+The API connects only as `app_runtime`. GraphQL transactions start with `SET LOCAL ROLE app_user`, and the `/auth` routes with `SET LOCAL ROLE app_identity`. A request never switches role mid-transaction. Each cross-tenant need is one `SECURITY DEFINER` function owned by a scoped role that cannot log in. Local setup and Testcontainers give `app_runtime` its login and password, so no secret lives in a migration.
+
 Member lookup (`addMember(email)`) runs through `app_identity`. It is open to owners and admins of the current org, limited to 30 lookups per org per hour, and returns an id only. Until invitations exist it is an account-existence oracle for org admins. That risk is accepted and bounded.
+
+Join requests run through `app_join`. A requester names an org by slug and learns whether it exists. That is accepted and bounded at 10 requests per user per hour. The requester never reads the org's data, only their own requests.
 
 Policy shapes for the built roles:
 
@@ -95,14 +103,24 @@ GRANT UPDATE (display_name) ON users TO app_user;
 
 -- users, identity role: global lookup, provisioning, identity-provider sync
 CREATE POLICY identity ON users FOR ALL TO app_identity USING (true) WITH CHECK (true);
-GRANT SELECT (id, auth_subject, email), INSERT, UPDATE (email, display_name) ON users TO app_identity;
+GRANT SELECT (id, auth_subject, email, password_hash), INSERT, UPDATE (email, display_name, password_hash)
+  ON users TO app_identity;
+
+-- Join requests, join role: only the caller's own requests; org lookup by slug
+CREATE POLICY own_requests ON org_join_requests FOR ALL TO app_join
+  USING      (user_id = (SELECT app.current_user_id()))
+  WITH CHECK (user_id = (SELECT app.current_user_id()) AND status IN ('pending', 'canceled'));
+
+CREATE POLICY join_lookup ON organizations FOR SELECT TO app_join USING (true);
+GRANT SELECT (id, slug, name) ON organizations TO app_join;
 ```
 
 ## 3. Entity Rules
 
 | Entity | Rules |
 |---|---|
-| `users` | Unique identity-provider subject and email. Never deleted. Created and synced only by `app_identity`. |
+| `users` | Unique email. Unique identity-provider subject when present. Local accounts carry an argon2id `password_hash`. A check requires a hash or a subject. Never deleted. Created and synced only by `app_identity`. |
+| `refresh_tokens` | Global. Stored as a SHA-256 hash, grouped in families. Rotated on every refresh. Reuse of a revoked token revokes its family. Only `app_identity` reads or writes it. |
 | `organizations` | Slug unique |
 | `organization_settings` | Timezone is a valid IANA name. Priority display names only; the scale is fixed. |
 | `org_memberships` | One row per user per org. Re-adding reactivates the row. A live org always has one active owner. |
@@ -112,6 +130,7 @@ GRANT SELECT (id, auth_subject, email), INSERT, UPDATE (email, display_name) ON 
 | `tasks` | Number unique per project, never reused. Rank unique per project, base-62, at most 128 characters. Due date required. Assignee may be any active member while the task is open and visible. |
 | `labels` | Live names unique per org, case-insensitive. Archived labels stay on tasks but cannot be applied. At most 500 live per org and 20 per task. |
 | `task_labels` | Composite key, tenant-scoped on both sides |
+| `org_join_requests` | One pending request per user per org. `decided_at` and `decided_by` are set exactly when the status is approved or rejected. The requester reads and cancels only their own. Owners and admins decide. |
 | `comments` | The author edits. The author, an owner, or an admin deletes. Deletion removes the body. |
 | `activity_events` | Insert-only for the API. Partitioned monthly. Scope matches the type prefix. |
 
@@ -123,7 +142,8 @@ GRANT SELECT (id, auth_subject, email), INSERT, UPDATE (email, display_name) ON 
 | Closed kind | Nullable enum | completed, canceled; null means open |
 | Priority | `smallint`, nullable | 1 urgent, 2 high, 3 medium, 4 low; null is `NONE` |
 | Actor kind | Enum | user, system |
-| Activity type | Enum, grow-only | 29 types (section 7.4) |
+| Join request status | Enum | pending, approved, rejected, canceled |
+| Activity type | Enum, grow-only | 30 types (section 7.4) |
 
 ## 4. Derived Data
 
@@ -162,11 +182,15 @@ GRANT SELECT (id, auth_subject, email), INSERT, UPDATE (email, display_name) ON 
 | Archived labels cannot be applied | Trigger with a shared lock on the label row | T7, T10 |
 | A comment has a body exactly when it is not deleted | Check constraint | T28 |
 | Every task has a due date | `NOT NULL` | T25 |
-| Only the switcher role reads across tenants | Role-scoped policies and column grants | T16 |
+| Only the switcher and join roles read across tenants, each through definer functions | Role-scoped policies and column grants | T16, T29 |
 | `app_user` reads only itself and current-org members in `users` | Forced row-level security on `users` | T17 |
 | Identity columns change only through `app_identity` | Column grants | T17 |
+| One pending join request per user per org; a requester reads only their own requests and no tenant data | Partial unique index, role-scoped policies, definer functions | T29 |
+| A reused refresh token revokes its family | API, unique hash index | T31 |
+| `app_runtime` has no privileges without `SET ROLE` | Grants `WITH INHERIT FALSE` | T32 |
+| Member lookup returns at most one id and nothing else | Definer function with a fixed return type | T33 |
 
-API-enforced by design: the role matrix, the bulk reopen routine, status and label caps, read-only archived projects, mention validation, rank generation, and one event per mutation.
+API-enforced by design: the role matrix, approval roles (never owner), rate limits on sign in, member lookup, join requests, and org creation, the bulk reopen routine, status and label caps, read-only archived projects, mention validation, rank generation, and one event per mutation.
 
 ### 5.2 Tests
 
@@ -195,8 +219,27 @@ API-enforced by design: the role matrix, the bulk reopen routine, status and lab
 | T25 | Creating a task without a due date fails; clearing a due date fails | Built |
 | T27 | Tasks in archived projects never count as overdue; the plans for the overdue query and the summary do not read `projects` | Built |
 | T28 | `app_user` cannot update `projects.key`; a comment with both a body and a deletion time, or with neither, is rejected | Built |
+| T29 | A requester sees only their own join requests and no tenant rows; a second pending request for the same org fails; another org's owner cannot read the request | Built |
+| T30 | Approval inserts or reactivates exactly one membership with the chosen role and writes `member.added` with `via: join_request`; rejection writes `member.join_request_rejected`; a decided request fails with `JOIN_REQUEST_NOT_PENDING`; no path grants owner | Built |
+| T31 | Refresh rotates the token; presenting a rotated token revokes the whole family; sign out revokes it | Built |
+| T32 | As `app_runtime` without `SET ROLE`, every tenant table and `users` read fails | Built |
+| T33 | `app.lookup_user_id_by_email` returns one id or none, for exact matches only | Built |
 
-## 6. Mutation Behavior (Designed)
+## 6. Mutation Behavior
+
+### 6.1 Built flows
+
+| Flow | Behavior |
+|---|---|
+| Sign up, sign in | `/auth` routes under `app_identity`. argon2id hashes. Unknown email and wrong password return the same `INVALID_CREDENTIALS` in the same time. The access token is a 15-minute JWT whose subject is the user id. |
+| Refresh, sign out | The refresh token is an `HttpOnly`, `SameSite=Strict` cookie on `/auth`. Every refresh rotates it. Reuse of a rotated token revokes the family. Sign out revokes the family and clears the cookie. |
+| Create organization | Any signed-in user, 5 per day. `app.create_organization` sets its own org context and inserts the org, its settings, the owner membership, and the default status template in one transaction. |
+| Request to join | `app.submit_join_request(slug)` resolves the slug, rejects an existing member with `ALREADY_MEMBER` or a pending duplicate with `JOIN_REQUEST_PENDING`, and inserts the request. The requester can cancel a pending request. |
+| Approve or reject | Owner or admin. Approval inserts or reactivates the membership with the chosen role (admin, member, or contributor), marks the request, and writes `member.added` with `via: join_request`. Rejection writes `member.join_request_rejected`. |
+| Add member | Owner or admin. `app.lookup_user_id_by_email` matches the exact email, 30 lookups per org per hour, then the same membership path with `via: direct`. |
+| Create project | Owner, admin, or member. `app.create_project` copies the template statuses, sets the default status, and writes `project.created`. |
+
+### 6.2 Designed flows
 
 | Flow | Behavior |
 |---|---|
@@ -226,11 +269,15 @@ Moves and creates never wait for each other. The bulk reopen routine locks membe
 
 ### 7.1 Operations
 
-**Org selection.** `viewer.memberships` is the only operation that runs without an org. It takes no arguments. Every other operation requires the selected org id.
+**Org selection.** `viewer`, `createOrganization`, `requestToJoinOrganization`, and `cancelJoinRequest` run without an org. Every other operation requires the selected org id in the `X-Org-Id` header. An operation that mixes org-less mutations with org-scoped fields fails with `VALIDATION_FAILED`.
 
-**Queries (Built).** `viewer`, `organization`, `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks(filter, orderBy, first, after)`, `taskSummary(filter)`, `labels`.
+**Authentication.** REST routes `/auth/signup`, `/auth/signin`, `/auth/refresh`, and `/auth/signout` (Built). GraphQL takes the access token as a bearer header.
 
-**Mutations (Designed).** Org settings and template; add, change role, deactivate, reactivate member; create, update, archive, restore project; create, update, reorder, archive status and set default; create, update, move, bulk move, archive, restore task and change labels; create, update, archive label; add, edit, delete comment.
+**Queries (Built).** `viewer` (user, memberships, own join requests), `organization` (with `members` and `joinRequests` connections), `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks(filter, orderBy, first, after)`, `taskSummary(filter)`, `board(projectId, filter, first)`, `labels`.
+
+**Mutations (Built).** `createOrganization`, `requestToJoinOrganization`, `cancelJoinRequest`, `approveJoinRequest(id, role)`, `rejectJoinRequest`, `addMember(email, role)`, `createProject`.
+
+**Mutations (Designed).** Org settings and template; change role, deactivate, reactivate member; update, archive, restore project; create, update, reorder, archive status and set default; create, update, move, bulk move, archive, restore task and change labels; create, update, archive label; add, edit, delete comment.
 
 **Filter.** Fields combine with AND; lists combine with OR, except `labelsAll`. Fields: projects, statuses, assignees plus `includeUnassigned`, priorities (including `NONE`), inclusive due-date range, `labelsAny`, `labelsAll`, `isClosed`, `overdueOnly`, `includeArchived`. `taskSummary` accepts the same filter.
 
@@ -270,7 +317,7 @@ Every payload stores ids plus snapshots of anything renamable (status, label). U
 | Project | created, updated, archived, restored |
 | Status | created, updated, closed kind changed (with affected and cleared counts), archived (with replacement, moved count, and cleared count) |
 | Label | created, updated, archived |
-| Member | added, role changed, deactivated (with cleared count), reactivated |
+| Member | added (with `via`: direct or join request), join request rejected, role changed, deactivated (with cleared count), reactivated |
 | Org | settings changed, template changed |
 
 ### 7.5 Error codes
@@ -279,7 +326,9 @@ Errors carry `extensions.code`.
 
 | Group | Codes |
 |---|---|
-| Access | `UNAUTHENTICATED`, `NOT_FOUND`, `FORBIDDEN` |
+| Access | `UNAUTHENTICATED`, `NOT_FOUND`, `FORBIDDEN`, `RATE_LIMITED` |
+| Accounts | `EMAIL_TAKEN`, `INVALID_CREDENTIALS` |
+| Organizations | `ORG_SLUG_TAKEN`, `ALREADY_MEMBER`, `JOIN_REQUEST_PENDING`, `JOIN_REQUEST_NOT_PENDING` |
 | Input | `VALIDATION_FAILED`, `INVALID_ORDER`, `INVALID_MENTION`, `QUERY_TOO_COMPLEX` |
 | Projects | `PROJECT_ARCHIVED`, `PROJECT_KEY_TAKEN` |
 | Statuses | `STATUS_NOT_IN_PROJECT`, `STATUS_ARCHIVED`, `STATUS_IN_USE`, `STATUS_NAME_TAKEN`, `STATUS_LIMIT_REACHED`, `DEFAULT_STATUS_INVALID` |
@@ -298,6 +347,7 @@ Errors carry `extensions.code`.
 
 | Index | Serves |
 |---|---|
+| `tasks_org_created (org_id, id)` live | Default order across projects, newest first |
 | `tasks_by_status (org_id, project_id, status_id)` | Status foreign key, status flips, status archive checks |
 | `tasks_open_by_assignee (org_id, assignee_id)` open, assigned | Deactivation |
 | `tasks_archived (org_id, project_id, archived_at DESC)` archived | Archived view |
@@ -305,9 +355,12 @@ Errors carry `extensions.code`.
 | `comments_timeline`, `comments_live_count` | Timeline, comment counts |
 | `activity_by_task`, `activity_by_project`, `activity_by_org` | Timelines and feeds, per partition |
 | `org_memberships_by_user (user_id)` active | Org switcher |
+| `org_join_requests_pending (org_id, user_id)` pending, unique | One pending request per user; the approval queue |
+| `org_join_requests_by_user (user_id, created_at DESC)` | The requester's own list |
+| `refresh_tokens_hash (token_hash)` unique | Refresh lookup |
 | Case-insensitive unique name indexes | Status, template status, and label names |
 
-History partitions are monthly. The initial migration creates the first partitions. A maintenance job run as `app_owner` keeps three months ahead (Designed). The default partition must stay empty.
+History partitions are monthly and live in schema `history_parts`, which Prisma does not model, so the drift check (T13) ignores them. `app.ensure_activity_partitions(months_ahead)` creates missing partitions idempotently. The initial migration and the seed call it for 12 months ahead. A maintenance job run as `app_owner` calls it monthly (Designed). The default partition must stay empty.
 
 ## 9. Re-key Design (Later)
 

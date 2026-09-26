@@ -12,8 +12,9 @@ Multi-tenant project management platform (a simplified Linear or Jira), built as
 | API design                                                                             | `docs/2.1-api-design.md`            |
 | UI architecture                                                                        | `docs/2.2-ui-architecture.md`       |
 | Board performance                                                                      | `docs/3.1-rfc-board-performance.md` |
+| Implementation plan: phases, exit criteria, open questions                             | `docs/implementation-plan.md`       |
 
-Delivery tiers are Built, Designed, and Later (README). Build only the Built tier. Do not implement Designed or Later items unless asked.
+Delivery tiers are Built, Designed, and Later (README). Build only the Built tier, which includes accounts, organization creation, join requests, member add, and project creation. Do not implement Designed or Later items unless asked. Work phase by phase as the implementation plan orders it.
 
 ## Monorepo
 
