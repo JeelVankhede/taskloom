@@ -14,4 +14,6 @@ export interface RequestStore extends ClsStore {
   role?: OrgRole;
   tx?: TxClient;
   loaders?: LoaderRegistry;
+  /** Data statements issued through DbContext in this request (lifecycle statements excluded). */
+  statements?: number;
 }

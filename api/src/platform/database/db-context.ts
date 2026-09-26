@@ -18,7 +18,9 @@ export class DbContext {
     const tx = this.cls.isActive() ? this.cls.get('tx') : undefined;
     if (!tx)
       throw new Error('No request transaction: database access outside the request lifecycle');
-    return tx;
+    return countingProxy(tx, () =>
+      this.cls.set('statements', (this.cls.get('statements') ?? 0) + 1),
+    );
   }
 
   get userId(): string {
@@ -56,4 +58,37 @@ export class DbContext {
   require(capability: Capability): void {
     authorize(this.role, capability);
   }
+}
+
+const RAW_OPERATIONS = new Set(['$queryRaw', '$executeRaw']);
+
+/**
+ * Counts every statement a resolver issues: raw queries and model operations. The count is
+ * logged per request and bounds the board and summary in tests (N+1 regressions show up).
+ */
+function countingProxy(tx: TxClient, count: () => void): TxClient {
+  return new Proxy(tx, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (typeof prop === 'string' && RAW_OPERATIONS.has(prop) && typeof value === 'function') {
+        return (...args: unknown[]) => {
+          count();
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      }
+      if (typeof prop === 'string' && !prop.startsWith('$') && value && typeof value === 'object') {
+        return new Proxy(value, {
+          get(delegate, operation, delegateReceiver) {
+            const fn = Reflect.get(delegate, operation, delegateReceiver) as unknown;
+            if (typeof fn !== 'function') return fn;
+            return (...args: unknown[]) => {
+              count();
+              return (fn as (...a: unknown[]) => unknown).apply(delegate, args);
+            };
+          },
+        });
+      }
+      return value;
+    },
+  });
 }
