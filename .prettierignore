@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+docs
+api/src/generated
+web/src/generated
+packages/contracts/src/generated
+api/prisma/migrations
+web/storybook-static
+web/playwright-report

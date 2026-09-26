@@ -1,0 +1,11 @@
+# Taskloom GraphQL schema (schema-first).
+# Task 1.1 types and Task 2.1 queries are added in the schema and query phases.
+
+type Query {
+  "Liveness probe. Replaced by the real root fields in the query phase."
+  health: Health!
+}
+
+type Health {
+  ok: Boolean!
+}

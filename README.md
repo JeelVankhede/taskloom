@@ -4,20 +4,20 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 
 ## Deliverables
 
-| Brief item | Location |
-|---|---|
-| 1.1 GraphQL type definitions | [`api/src/schema.graphql`](api/src/schema.graphql) |
-| 1.1 SQL and ORM definitions | [`api/prisma/schema.prisma`](api/prisma/schema.prisma), [`api/prisma/migrations/`](api/prisma/migrations/) |
-| 1.2 Technical documentation | [`docs/1.2-data-model.md`](docs/1.2-data-model.md) |
-| 1.3 AI critique output | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md) |
-| 1.3 My analysis | [`docs/1.3-analysis.md`](docs/1.3-analysis.md) |
-| 2.1 GraphQL schema and resolvers | [`api/src/schema.graphql`](api/src/schema.graphql), [`api/src/resolvers/`](api/src/resolvers/) |
-| 2.1 Design decisions | [`docs/2.1-api-design.md`](docs/2.1-api-design.md) |
-| 2.2 React component | [`web/src/TaskBoard/`](web/src/TaskBoard/) |
-| 2.2 State and architecture decisions | [`docs/2.2-ui-architecture.md`](docs/2.2-ui-architecture.md) |
-| 3.1 RFC | [`docs/3.1-rfc-board-performance.md`](docs/3.1-rfc-board-performance.md) |
-| AI transcript and prompting commentary | [`docs/ai-transcript/`](docs/ai-transcript/) |
-| Full design detail (appendix) | [`docs/design-reference.md`](docs/design-reference.md) |
+| Brief item                             | Location                                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 1.1 GraphQL type definitions           | [`api/src/schema.graphql`](api/src/schema.graphql)                                                         |
+| 1.1 SQL and ORM definitions            | [`api/prisma/schema.prisma`](api/prisma/schema.prisma), [`api/prisma/migrations/`](api/prisma/migrations/) |
+| 1.2 Technical documentation            | [`docs/1.2-data-model.md`](docs/1.2-data-model.md)                                                         |
+| 1.3 AI critique output                 | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md)                                                       |
+| 1.3 My analysis                        | [`docs/1.3-analysis.md`](docs/1.3-analysis.md)                                                             |
+| 2.1 GraphQL schema and resolvers       | [`api/src/schema.graphql`](api/src/schema.graphql), [`api/src/resolvers/`](api/src/resolvers/)             |
+| 2.1 Design decisions                   | [`docs/2.1-api-design.md`](docs/2.1-api-design.md)                                                         |
+| 2.2 React component                    | [`web/src/TaskBoard/`](web/src/TaskBoard/)                                                                 |
+| 2.2 State and architecture decisions   | [`docs/2.2-ui-architecture.md`](docs/2.2-ui-architecture.md)                                               |
+| 3.1 RFC                                | [`docs/3.1-rfc-board-performance.md`](docs/3.1-rfc-board-performance.md)                                   |
+| AI transcript and prompting commentary | [`docs/ai-transcript/`](docs/ai-transcript/)                                                               |
+| Full design detail (appendix)          | [`docs/design-reference.md`](docs/design-reference.md)                                                     |
 
 ## Reading Order
 
@@ -32,11 +32,11 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 
 Part 2 of the brief asks for queries, pagination, a summary, authorization, and a board UI. It does not ask for mutations. The line between built and designed follows that.
 
-| Tier | Contents |
-|---|---|
-| Built | Schema and migration chain. Four database roles, row-level security policies, triggers, and the tests tagged Built in the design reference. The request lifecycle. The `tasks` query with filters and cursor pagination, `taskSummary`, the board query, overdue, and identifier resolution. The Task Board UI. |
-| Designed | GraphQL mutations with their history writes, rank generation and rebalance, the bulk reopen routine, member deactivation, and partition maintenance. Each is specified in the design reference. |
-| Later | Project re-key, org soft delete and purge, auto-archive, domain events through an outbox, cross-project move, and the rest of the design reference's Later list. Each has an additive path. |
+| Tier     | Contents                                                                                                                                                                                                                                                                                                        |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Built    | Schema and migration chain. Four database roles, row-level security policies, triggers, and the tests tagged Built in the design reference. The request lifecycle. The `tasks` query with filters and cursor pagination, `taskSummary`, the board query, overdue, and identifier resolution. The Task Board UI. |
+| Designed | GraphQL mutations with their history writes, rank generation and rebalance, the bulk reopen routine, member deactivation, and partition maintenance. Each is specified in the design reference.                                                                                                                 |
+| Later    | Project re-key, org soft delete and purge, auto-archive, domain events through an outbox, cross-project move, and the rest of the design reference's Later list. Each has an additive path.                                                                                                                     |
 
 ## Assumptions
 
