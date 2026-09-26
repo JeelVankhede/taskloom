@@ -4,7 +4,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { type Env, validateEnv } from './config/env.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
+import { MembershipModule } from './modules/membership/membership.module.js';
 import { OrganizationModule } from './modules/organization/organization.module.js';
+import { ProjectModule } from './modules/project/project.module.js';
+import { TaskModule } from './modules/task/task.module.js';
+import { UserModule } from './modules/user/user.module.js';
 import { ViewerModule } from './modules/viewer/viewer.module.js';
 import { graphqlOptions } from './platform/graphql/graphql.options.js';
 import { LimitsPlugin } from './platform/graphql/limits.plugin.js';
@@ -43,6 +47,10 @@ export class AppModule {
         IdentityModule,
         ViewerModule,
         OrganizationModule,
+        UserModule,
+        MembershipModule,
+        ProjectModule,
+        TaskModule,
       ],
       providers: options.extraProviders ?? [],
     };
