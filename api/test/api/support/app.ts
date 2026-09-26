@@ -9,6 +9,10 @@ import {
   DEFAULT_AUTH_LIMITS,
 } from '../../../src/modules/identity/auth-rate-limiter.js';
 import { configureApp } from '../../../src/platform/http/configure-app.js';
+import {
+  ACTION_LIMITS,
+  DEFAULT_ACTION_LIMITS,
+} from '../../../src/platform/rate-limit/action-limiter.js';
 import { PROBE_TYPE_DEFS, ProbeResolver } from './probe.js';
 
 /** Test-only signing secret. */
@@ -57,7 +61,16 @@ export interface TestApp {
 export interface StartOptions extends AppModuleOptions {
   /** Auth rate limits; tests default to the real limits scaled up so they never interfere. */
   authLimits?: typeof DEFAULT_AUTH_LIMITS;
+  /** Action limits (org creation, join requests, member lookups); relaxed by default. */
+  actionLimits?: typeof DEFAULT_ACTION_LIMITS;
 }
+
+const RELAXED_ACTION_LIMITS = Object.fromEntries(
+  Object.entries(DEFAULT_ACTION_LIMITS).map(([action, rule]) => [
+    action,
+    { ...rule, limit: rule.limit * 1000 },
+  ]),
+) as typeof DEFAULT_ACTION_LIMITS;
 
 /** Real limits with every counter raised 1,000 times, so only the rate-limit tests hit them. */
 const RELAXED_AUTH_LIMITS = Object.fromEntries(
@@ -92,6 +105,8 @@ export async function startApp(
   })
     .overrideProvider(AUTH_RATE_LIMITS)
     .useValue(options.authLimits ?? RELAXED_AUTH_LIMITS)
+    .overrideProvider(ACTION_LIMITS)
+    .useValue(options.actionLimits ?? RELAXED_ACTION_LIMITS)
     .compile();
   const app = moduleRef.createNestApplication({ bufferLogs: true });
   configureApp(app);

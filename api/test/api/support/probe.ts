@@ -24,9 +24,7 @@ export const PROBE_TYPE_DEFS = /* GraphQL */ `
     slowProbe(ms: Int!): Boolean!
   }
 
-  type Mutation {
-    "Named like an org-less mutation, to test the mixing rule."
-    createOrganization: Boolean!
+  extend type Mutation {
     insertLabel(name: String!): Boolean!
     insertLabelThenFail(name: String!): Boolean!
     demoteSelf: Boolean!
@@ -72,11 +70,6 @@ export class ProbeResolver {
   @Query('slowProbe')
   async slowProbe(): Promise<boolean> {
     await this.db.tx.$queryRaw`SELECT pg_sleep(0.5)`;
-    return true;
-  }
-
-  @Mutation('createOrganization')
-  createOrganization(): boolean {
     return true;
   }
 

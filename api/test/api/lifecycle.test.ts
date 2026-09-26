@@ -115,10 +115,13 @@ describe('organization selection', () => {
   });
 
   it('rejects an org-less mutation combined with organization fields', async () => {
-    const result = await api.gql('mutation { createOrganization insertLabel(name: "x") }', {
-      token: api.token(org.ownerId),
-      orgId: org.orgId,
-    });
+    const result = await api.gql(
+      'mutation { createOrganization(input: { name: "X", slug: "mix" }) { id } insertLabel(name: "x") }',
+      {
+        token: api.token(org.ownerId),
+        orgId: org.orgId,
+      },
+    );
     expect(codeOf(result)).toBe('VALIDATION_FAILED');
   });
 });
