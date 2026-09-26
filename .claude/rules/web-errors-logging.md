@@ -1,6 +1,6 @@
 ---
 paths:
-  - "web/**"
+  - 'web/**'
 ---
 
 # Errors And Logging
@@ -35,7 +35,6 @@ For React, use `ErrorBoundary` components at route and widget boundaries. For Vu
 - Log structured context (route, user id if safe, correlation id) — **never** secrets, tokens, or PII.
 
 ### Monitoring
-
 
 ### Source maps
 

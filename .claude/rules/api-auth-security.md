@@ -1,6 +1,6 @@
 ---
 paths:
-  - "api/**"
+  - 'api/**'
 ---
 
 # Auth And Security

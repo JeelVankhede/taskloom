@@ -1,0 +1,58 @@
+{
+  "name": "taskloom",
+  "private": true,
+  "description": "Multi-tenant project management platform",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "packages/*",
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "build:contracts": "npm run codegen && npm run build -w @taskloom/contracts",
+    "prepare": "husky",
+    "migrate": "npm run migrate -w @taskloom/api",
+    "seed": "npm run seed -w @taskloom/api",
+    "dev": "npm run build:contracts && concurrently -n api,web -c blue,magenta \"npm run dev -w @taskloom/api\" \"npm run dev -w @taskloom/web\"",
+    "build": "npm run build:contracts && npm run build -w @taskloom/api -w @taskloom/web",
+    "lint": "eslint . --max-warnings 0 && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "e2e": "npm run e2e -w @taskloom/web"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "eslint --max-warnings 0 --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,graphql,css}": "prettier --write"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@graphql-codegen/cli": "^7.4.3",
+    "@graphql-codegen/client-preset": "^6.2.0",
+    "@graphql-codegen/typescript": "^6.1.0",
+    "@graphql-codegen/typescript-resolvers": "^6.1.0",
+    "@types/node": "^24.19.0",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "graphql": "^16.11.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1"
+  },
+  "overrides": {
+    "graphql": "^16.11.0"
+  }
+}

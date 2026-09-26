@@ -4,14 +4,14 @@ Multi-tenant project management platform (a simplified Linear or Jira), built as
 
 ## Source of truth
 
-| Topic | Document |
-|---|---|
-| Data model, tenancy, indexes, migrations | `docs/1.2-data-model.md` |
-| Roles, invariants, tests (T1 to T28), mutation behavior, GraphQL contract, error codes | `docs/design-reference.md` |
-| Review decisions | `docs/1.3-analysis.md` |
-| API design | `docs/2.1-api-design.md` |
-| UI architecture | `docs/2.2-ui-architecture.md` |
-| Board performance | `docs/3.1-rfc-board-performance.md` |
+| Topic                                                                                  | Document                            |
+| -------------------------------------------------------------------------------------- | ----------------------------------- |
+| Data model, tenancy, indexes, migrations                                               | `docs/1.2-data-model.md`            |
+| Roles, invariants, tests (T1 to T28), mutation behavior, GraphQL contract, error codes | `docs/design-reference.md`          |
+| Review decisions                                                                       | `docs/1.3-analysis.md`              |
+| API design                                                                             | `docs/2.1-api-design.md`            |
+| UI architecture                                                                        | `docs/2.2-ui-architecture.md`       |
+| Board performance                                                                      | `docs/3.1-rfc-board-performance.md` |
 
 Delivery tiers are Built, Designed, and Later (README). Build only the Built tier. Do not implement Designed or Later items unless asked.
 
@@ -19,13 +19,13 @@ Delivery tiers are Built, Designed, and Later (README). Build only the Built tie
 
 npm workspaces, Node 24 LTS.
 
-| Path | Contents |
-|---|---|
-| `api/` | NestJS, Apollo driver (schema-first), Prisma 7, PostgreSQL 18, Jest, Testcontainers |
-| `web/` | React, Vite, TypeScript, MUI, Apollo Client, React Hook Form, MUI X Charts, Vitest, Storybook, Playwright |
+| Path                  | Contents                                                                                                                                                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api/`                | NestJS 12 (ESM), Apollo driver (schema-first), Prisma 7, PostgreSQL 18, Vitest with SWC, Testcontainers                                                              |
+| `web/`                | React, Vite, TypeScript, MUI, Apollo Client, React Hook Form, MUI X Charts, Vitest, Storybook, Playwright                                                            |
 | `packages/contracts/` | `schema.graphql`, generated GraphQL types, and shared TypeScript: enums, interfaces, error codes, validation rules. Imported as `@taskloom/contracts` by both sides. |
-| `docs/` | Submission documents |
-| `docker-compose.yml` | PostgreSQL 18 and PgBouncer (transaction mode) |
+| `docs/`               | Submission documents                                                                                                                                                 |
+| `docker-compose.yml`  | PostgreSQL 18 and PgBouncer (transaction mode)                                                                                                                       |
 
 Scoped rules load automatically: `.claude/rules/api-*.md` for `api/**`, `.claude/rules/web-*.md` for `web/**`. `git-conventions.md` and `pre-commit.md` apply everywhere.
 

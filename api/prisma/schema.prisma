@@ -1,0 +1,13 @@
+// Task 1.1 ORM definitions. Models are added in the schema phase.
+// Hand-written SQL (RLS, roles, triggers, partitions, expression indexes)
+// lives in --create-only migrations. See docs/1.2-data-model.md, section 6.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

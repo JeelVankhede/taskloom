@@ -1,6 +1,6 @@
 ---
 paths:
-  - "api/**"
+  - 'api/**'
 ---
 
 # Environment And Configuration
@@ -31,19 +31,23 @@ All configuration values must flow through environment variables (12-Factor App 
 For 12-Factor apps: treat config as environment — all per-environment values come from env vars, not files committed to the repo. For secrets managers (AWS Secrets Manager, GCP Secret Manager, HashiCorp Vault): reference the secret key in config; never pull the value into a `.env` file that might be committed.
 
 ### Environment Variables (`.env`)
+
 - Never commit `.env` files to source control.
 - Maintain a `.env.example` file with dummy values for all required variables.
 
 ### Configuration Management
+
 - Use `@nestjs/config` and the `ConfigService` for all config injection.
 - Never use `process.env` directly in application code outside of `app.module.ts`.
 - Validate environment variables on startup using `class-validator` or `zod`.
 
 ### Feature Flags
+
 - Use feature flags for partially completed features.
 - Keep feature flag checks at the controller/router level or service boundary, not deeply nested within repositories.
 
 ### Containerization (Docker)
+
 - Use multi-stage builds in Dockerfiles to keep production images tiny.
 - Always include a pristine `.dockerignore` file.
 - Run the application as a non-root user inside the container for security.

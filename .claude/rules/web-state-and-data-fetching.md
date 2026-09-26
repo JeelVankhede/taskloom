@@ -1,6 +1,6 @@
 ---
 paths:
-  - "web/**"
+  - 'web/**'
 ---
 
 # State And Data Fetching
@@ -34,9 +34,7 @@ For client-side fetching libraries, prefer existing query keys, cache invalidati
 - Prefer **local component state** and framework primitives (Context sparingly).
 - Avoid prop drilling more than 2–3 levels — lift state or use composition.
 
-
 #### SSR / hydration
-
 
 #### Ownership rules
 

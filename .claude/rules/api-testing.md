@@ -1,6 +1,6 @@
 ---
 paths:
-  - "api/**"
+  - 'api/**'
 ---
 
 # Backend Testing
@@ -9,7 +9,7 @@ Guide validation choices for this monorepo.
 
 Use this rule during the Review and Test stages.
 
-This project uses **jest** for testing. Choose validation proportional to risk and cover success, validation failure, auth failure, and integration failure paths where relevant.
+This project uses **Vitest** for testing. NestJS 12 is ESM-only, so the API is ESM and Vitest runs it through `unplugin-swc`, which emits the decorator metadata Nest DI needs. Choose validation proportional to risk and cover success, validation failure, auth failure, and integration failure paths where relevant.
 
 ## AI Responsibilities
 
@@ -39,11 +39,13 @@ Use the existing test framework and fixture style. Prefer focused integration te
 - Test coverage: `npm run test --coverage`
 
 ### Unit Tests
+
 - Co-locate unit tests with the code they are testing (e.g. `user.service.spec.ts` next to `user.service.ts`).
-- Use NestJS `TestBed` to create isolated testing modules.
-- Mock all repository and external service dependencies using standard `jest.mock()` or custom mock providers in the TestBed.
+- Use `Test.createTestingModule` from `@nestjs/testing` for isolated modules.
+- Mock repositories and external services with custom providers or `vi.fn()`. Import `describe`, `it`, `expect`, and `vi` from `vitest` explicitly.
 
 ### Integration And E2E Tests
+
 - Place integration and E2E tests in `api/test/`.
 - Use Testcontainers with PostgreSQL 18. Apply the full migration chain to an empty database.
 - Database invariant tests (T1 to T28 in the design reference) run as `app_user`, never as the owner or a superuser, because a superuser bypasses row-level security.
@@ -51,10 +53,12 @@ Use the existing test framework and fixture style. Prefer focused integration te
 - A statement-count test fails if the board query exceeds its SQL ceiling.
 
 ### Mocking Conventions
+
 - Only mock external boundaries (databases, third-party APIs, queues).
 - Do not over-mock internal business logic if testing it all together is fast and deterministic.
 
 ### JSDoc and Documentation
+
 - Clearly comment complex test setups.
 - Use the `Arrange, Act, Assert` pattern in every test block.
 

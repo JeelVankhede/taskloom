@@ -1,6 +1,6 @@
 ---
 paths:
-  - "api/**"
+  - 'api/**'
 ---
 
 # Errors, Logging, And Observability

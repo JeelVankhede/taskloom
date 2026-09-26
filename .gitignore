@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+api/src/generated/
+web/src/generated/
+packages/contracts/src/generated/
+web/storybook-static/
+web/test-results/
+web/playwright-report/
+.DS_Store
+*.log

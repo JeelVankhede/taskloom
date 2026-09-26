@@ -1,6 +1,6 @@
 ---
 paths:
-  - "web/**"
+  - 'web/**'
 ---
 
 # Frontend Security

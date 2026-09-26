@@ -1,6 +1,6 @@
 ---
 paths:
-  - "api/**"
+  - 'api/**'
 ---
 
 # Data Layer And Migrations (prisma)
@@ -33,6 +33,7 @@ This project uses an Object-Relational Mapping (ORM) layer to handle persistence
 Follow the existing ORM, query builder, or migration tool. Prefer reversible migrations unless a one-way operation is explicitly accepted.
 
 ### Repository Pattern
+
 See `api-architecture.md`. Repositories use the request transaction from CLS, never the root client.
 
 ### Schema & Models
@@ -54,6 +55,7 @@ See `api-architecture.md`. Repositories use the request transaction from CLS, ne
 - Backfills run per org, in their own transaction, with tenant context set.
 
 ### Data Seeding
+
 Use the project's seeding strategy (if provided) to populate lookups and initial admin states for development and testing. Do not rely on ad-hoc SQL inserts during setup.
 
 ## Acceptance Criteria

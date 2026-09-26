@@ -29,18 +29,21 @@ Follow the project's commit convention, branch naming pattern, and PR template w
 For projects using Conventional Commits, use `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:` prefixes. Include a scope in parentheses scoped to the service, module, or domain. Mark breaking API changes with `!` (e.g., `feat(auth)!:`) or a `BREAKING CHANGE:` footer.
 
 ### Branch Naming
+
 - Features: `feat/ticket-id-short-description`
 - Bugfixes: `fix/ticket-id-short-description`
 - Hotfixes: `hotfix/issue-description`
 - Chores (deps, configs): `chore/description`
 
 ### Pull Request Strategy
+
 1. Always open PRs against `main` (or `develop` if following git-flow).
 2. The PR description must link to the relevant ticket/issue.
 3. Include a "Testing Steps" section explaining how reviewers can locally verify the change.
 4. **Self-Review:** The author must do a full pass over their own diff before requesting review.
 
 ### Commit Message Format (Conventional Commits)
+
 Format: `<type>(<optional scope>): <description>`
 
 - `feat:` A new feature
