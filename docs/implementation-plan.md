@@ -2,7 +2,7 @@
 
 | Field    | Value                                                                                                            |
 | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| Status   | For review. No feature code is written until this plan is approved.                                              |
+| Status   | Approved 27 September 2026. Each phase is detailed and its questions resolved with the reviewer before it is built. |
 | Date     | 26 September 2026                                                                                                |
 | Baseline | `chore/scaffold` (monorepo, agent rules, CI) on top of the design documents                                      |
 | Sources  | [README](../README.md), [1.2](1.2-data-model.md), [design reference](design-reference.md) v1.4, [2.1](2.1-api-design.md), [2.2](2.2-ui-architecture.md), [3.1](3.1-rfc-board-performance.md) |
@@ -19,13 +19,14 @@ This plan turns the design documents into code. Each phase is one branch and one
 | Request lifecycle | JWT verification, one transaction per GraphQL operation, `SET LOCAL ROLE`, tenant context, membership read once, pure `authorize`, cost and depth limits, DataLoaders |
 | Accounts | Email and password sign up and sign in, a 15-minute access token, a rotating refresh token in an `HttpOnly` cookie, sign out |
 | Organizations | Create an organization (the creator becomes owner), request to join by slug, owner or admin approval or rejection, add an existing user by exact email, create a project from the dashboard |
+| Tasks | Create a task (Q1): title, description, status (the project default unless chosen), priority, assignee, due date, labels. The database allocates the number and the top-of-column rank. |
 | Read API (Task 2.1) | `viewer`, `organization`, `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks`, `taskSummary`, `board`, `labels` |
 | Web | Design system, sign in and sign up, onboarding, org switcher, dashboard with projects, members and join requests, and the Task Board (Task 2.2) |
 | Seed | Demo organizations, users for every role, a pending join request, and one project with 2,500 tasks |
 
 ### 1.2 What stays designed or later
 
-Task, status, label, and comment mutations, rank generation and rebalance, bulk reopen, member deactivation, and partition maintenance stay **Designed**. Re-key, org deletion, auto-archive, the outbox, invitations for non-users, email verification, and password reset stay **Later**. The design reference specifies each.
+Task edits, moves, and archive, status, label, and comment mutations, rank generation for moves and rebalance, bulk reopen, member deactivation, and partition maintenance stay **Designed**. Re-key, org deletion, auto-archive, the outbox, invitations for non-users, email verification, and password reset stay **Later**. The design reference specifies each.
 
 ## 2. Decisions Carried Into the Build
 
@@ -98,6 +99,7 @@ type Mutation {
   rejectJoinRequest(id: ID!): JoinRequest! # owner, admin
   addMember(email: String!, role: Role = MEMBER): Membership! # owner, admin
   createProject(input: CreateProjectInput!): Project! # owner, admin, member
+  createTask(input: CreateTaskInput!): Task! # every role (Q1)
 }
 ```
 
@@ -191,7 +193,7 @@ Branch `feat/auth`.
 
 Branch `feat/org-membership`.
 
-- The mutations and `viewer` fields from section 3.4.
+- The mutations and `viewer` fields from section 3.4, including `createTask`, which writes `task.created` and applies up to 20 labels.
 - `organization.members` and `organization.joinRequests` as connections.
 - Approval inserts or reactivates exactly one membership and writes `member.added` with `via: join_request`. Rejection writes `member.join_request_rejected`.
 - Member lookup is limited to 30 per org per hour, and join requests to 10 per user per hour.
@@ -270,6 +272,7 @@ Branch `feat/task-board`.
 - `useTaskFilters` keeps filters in the URL. `useTaskBoard(filters)` runs the board and summary queries with the same variables.
 - Each column calls `fetchMore` with its own cursor, through an Apollo field policy.
 - Long columns are virtualized (open question Q4).
+- A New task dialog (Q1), available to every role.
 - Loading skeletons, per-query error and retry, and both empty cases.
 - **Tests:**
   - Component tests with a mocked Apollo provider.
@@ -307,13 +310,36 @@ Branch `docs/final-sync`.
 | Throttle counters are in memory | Correct for one instance. A shared store is Later, noted in the README. |
 | Slug-based join requests confirm that an org slug exists | Accepted and rate-limited, like the member-lookup oracle in design reference section 2 |
 
-## 7. Open Questions for Review
+## 7. Resolved Questions
 
-| # | Question | Recommendation |
+| # | Question | Decision |
 | --- | --- | --- |
-| Q1 | Task creation is Designed, so a newly created organization shows an empty board. Build a minimal `createTask` anyway? | Keep it Designed. Reviewers use the seeded demo accounts, and the empty board says task creation is designed but not built. Building it adds rank generation, which is about an S-size phase. |
-| Q2 | Show the organization's name to a requester on their pending request? | Yes. Names are low sensitivity, and requests are rate-limited. |
-| Q3 | Does the approver pick the role at approval? | Yes. The default is member, and owner can never be granted this way. |
-| Q4 | Add `@tanstack/react-virtual` for long columns? | Yes. The RFC calls for virtualization, and the package is small. |
-| Q5 | Throttle organization creation? | Yes, at 5 per user per day |
-| Q6 | Keep this plan in the submission? | Yes, linked from the AI transcript commentary as evidence of the process |
+| Q1 | Build a minimal `createTask`? | Yes. The seed and its demo accounts stay as planned. |
+| Q2 | Show the organization's name to a requester? | Yes |
+| Q3 | Does the approver pick the role at approval? | Yes, any role except owner |
+| Q4 | Add `@tanstack/react-virtual` for long columns? | Yes |
+| Q5 | Throttle organization creation? | Yes, 5 per user per day |
+| Q6 | Keep this plan in the submission? | Yes |
+
+## 8. Phase Decisions
+
+Each phase is walked through with the reviewer before it is built. The answers are recorded here.
+
+### Phase 1: Database foundation
+
+| Topic | Decision |
+| --- | --- |
+| Where `createTask` lands | Database pieces in Phase 1, the mutation in Phase 4, the dialog in Phase 9 |
+| Colors | Labels take one of ten color tokens: slate, red, orange, amber, green, teal, blue, indigo, purple, pink. Statuses have no color; the UI styles them by open, completed, or canceled. |
+| Priority display names | `priority_labels text[4]`, default Urgent, High, Medium, Low |
+| Timezone | Checked against `pg_timezone_names`, default `UTC`. The web app sends the browser's timezone at org creation. |
+| Default template | Backlog, Todo, In Progress, In Review (open), Done (completed), Canceled (canceled). Todo is the default status, marked by `org_template_statuses.is_default`. |
+| Field limits | Org slug 3 to 6 characters, lowercase letters, digits, inner hyphens. Org name 1 to 80. Project key exactly 3 characters (`^[A-Z][A-Z0-9]{2}$`). Project name 1 to 80, description up to 2,000. Task title 1 to 200, description up to 20,000. Comment up to 10,000. Label and status names 1 to 40. Display name 1 to 80. Enforced by database checks and shared from `@taskloom/contracts`. |
+| Reserved slugs | admin, api, auth, app, o, signin, signup, onboarding, settings, www |
+| Deactivation columns | `org_memberships.deactivated_at` added now |
+| Case-insensitive text | The `citext` extension for email and slug |
+| Partial indexes | Declared in the Prisma schema through the `partialIndexes` preview feature, so the drift check stays strict. Expression indexes and deferrable constraints stay in hand-written SQL, which Prisma's diff ignores. |
+| Partition fallback | Not needed: the partitioned `activity_events` diffs clean |
+| Task rank on create | Generated by the insert trigger after the project counter lock: before the column's first live rank and unique in the project. A client-supplied rank fails with `DERIVED_COLUMN_WRITE`. |
+| Schema layout | `api/prisma/schema/` holds one file per domain, to respect the 500-line rule |
+| Local tooling | `npm run db:reset` re-creates the dev databases. `npm run migrate:dev -w @taskloom/api` runs `prisma migrate dev` on a fresh shadow database. Both exist because Prisma only drops `public`, and the chain also owns `app` and `history_parts`. |

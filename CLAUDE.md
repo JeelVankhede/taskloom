@@ -46,6 +46,7 @@ Scoped rules load automatically: `.claude/rules/api-*.md` for `api/**`, `.claude
 ```bash
 npm install
 npm run db:up      # PostgreSQL 18 and PgBouncer in Docker
+npm run db:reset   # local only: re-create the dev databases and migrate
 npm run migrate    # Prisma migration chain
 npm run seed       # two organizations with sample data
 npm run codegen    # GraphQL types for api, web, and contracts

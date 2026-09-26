@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "migrate": "prisma migrate deploy",
-    "migrate:dev": "prisma migrate dev",
+    "migrate:dev": "sh ../scripts/prisma-migrate-dev.sh",
     "seed": "node seed/index.ts",
     "prebuild": "prisma generate"
   },
@@ -45,6 +45,7 @@
     "@swc/core": "^1.16.2",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.0",
+    "testcontainers": "^12.1.0",
     "unplugin-swc": "^2.0.0",
     "vitest": "^5.0.2"
   }

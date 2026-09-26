@@ -1,0 +1,27 @@
+// Typed, append-only history. The table is created by hand-written SQL as a
+// monthly range-partitioned table; its partitions live in schema history_parts,
+// which Prisma does not model. This model mirrors the parent table exactly.
+
+model ActivityEvent {
+  orgId         String       @map("org_id") @db.Uuid
+  id            String       @default(dbgenerated("uuidv7()")) @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  projectId     String?      @map("project_id") @db.Uuid
+  taskId        String?      @map("task_id") @db.Uuid
+  type          ActivityType
+  actorKind     ActorKind    @map("actor_kind")
+  actorId       String?      @map("actor_id") @db.Uuid
+  payload       Json         @db.JsonB
+  schemaVersion Int          @default(1) @map("schema_version") @db.SmallInt
+
+  organization Organization   @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project      Project?       @relation(fields: [orgId, projectId], references: [orgId, id], onDelete: NoAction, onUpdate: NoAction)
+  task         Task?          @relation(fields: [orgId, taskId], references: [orgId, id], onDelete: NoAction, onUpdate: NoAction)
+  actor        OrgMembership? @relation("ActivityActor", fields: [orgId, actorId], references: [orgId, userId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([orgId, id, createdAt])
+  @@index([orgId, taskId, createdAt, id], map: "activity_by_task", where: raw("(task_id IS NOT NULL)"))
+  @@index([orgId, projectId, createdAt, id], map: "activity_by_project", where: raw("(project_id IS NOT NULL)"))
+  @@index([orgId, createdAt, id], map: "activity_by_org")
+  @@map("activity_events")
+}

@@ -1,0 +1,37 @@
+// Global identity tables. Only app_identity reads password_hash or refresh_tokens.
+
+model User {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  email        String   @unique @db.Citext
+  displayName  String   @map("display_name")
+  authSubject  String?  @unique @map("auth_subject")
+  passwordHash String?  @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  memberships   OrgMembership[]
+  refreshTokens RefreshToken[]
+  joinRequests  OrgJoinRequest[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  familyId     String    @map("family_id") @db.Uuid
+  tokenHash    Bytes     @map("token_hash") @db.ByteA
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replacedBy RefreshToken? @relation("RefreshTokenRotation", fields: [replacedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replaces   RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@unique([tokenHash], map: "refresh_tokens_hash")
+  @@index([familyId], map: "refresh_tokens_by_family")
+  @@index([userId], map: "refresh_tokens_by_user")
+  @@map("refresh_tokens")
+}

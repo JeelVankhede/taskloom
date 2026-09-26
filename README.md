@@ -9,7 +9,7 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 | Brief item                             | Location                                                                                                         |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | 1.1 GraphQL type definitions           | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql)                                         |
-| 1.1 SQL and ORM definitions            | [`api/prisma/schema.prisma`](api/prisma/schema.prisma), [`api/prisma/migrations/`](api/prisma/migrations/)       |
+| 1.1 SQL and ORM definitions            | [`api/prisma/schema/`](api/prisma/schema/), [`api/prisma/migrations/`](api/prisma/migrations/)                   |
 | 1.2 Technical documentation            | [`docs/1.2-data-model.md`](docs/1.2-data-model.md)                                                               |
 | 1.3 AI critique output                 | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md)                                                             |
 | 1.3 My analysis                        | [`docs/1.3-analysis.md`](docs/1.3-analysis.md)                                                                   |
@@ -34,13 +34,13 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 
 ## What Is Built and What Is Designed
 
-Part 2 of the brief asks for queries, pagination, a summary, authorization, and a board UI. It does not ask for mutations. The line between built and designed follows that, with one addition: a working product needs accounts and a way into an organization, so sign up, organization creation, join requests, and project creation are built.
+Part 2 of the brief asks for queries, pagination, a summary, authorization, and a board UI. It does not ask for mutations. The line between built and designed follows that, with one addition: a working product needs accounts and a way into an organization, so sign up, organization creation, join requests, project creation, and task creation are built.
 
-| Tier     | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Built    | Schema and migration chain. The API database roles, the runtime login role, row-level security policies, triggers, and the tests tagged Built in the design reference. The request lifecycle. Email and password accounts with rotating refresh tokens. Creating an organization, joining one by request with owner or admin approval, adding an existing user by email, and creating a project. The `tasks` query with filters and cursor pagination, `taskSummary`, the board query, overdue, and identifier resolution. The onboarding, dashboard, members, and Task Board screens. |
-| Designed | Task, status, label, and comment mutations with their history writes, rank generation and rebalance, the bulk reopen routine, member role changes and deactivation, and partition maintenance. Each is specified in the design reference.                                                                                                                                                                                                                                                                                                                                              |
-| Later    | Project re-key, org soft delete and purge, auto-archive, domain events through an outbox, cross-project move, email verification and password reset, an external identity provider, and the rest of the design reference's Later list. Each has an additive path.                                                                                                                                                                                                                                                                                                                      |
+| Tier     | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Built    | Schema and migration chain. The API database roles, the runtime login role, row-level security policies, triggers, and the tests tagged Built in the design reference. The request lifecycle. Email and password accounts with rotating refresh tokens. Creating an organization, joining one by request with owner or admin approval, adding an existing user by email, creating a project, and creating a task. The `tasks` query with filters and cursor pagination, `taskSummary`, the board query, overdue, and identifier resolution. The onboarding, dashboard, members, and Task Board screens. |
+| Designed | Task edits, moves, and archive, and status, label, and comment mutations, with their history writes. Rank generation for moves and rebalance, the bulk reopen routine, member role changes and deactivation, and partition maintenance. Each is specified in the design reference.                                                                                                                                                                                                                                                                                                                      |
+| Later    | Project re-key, org soft delete and purge, auto-archive, domain events through an outbox, cross-project move, email verification and password reset, an external identity provider, and the rest of the design reference's Later list. Each has an additive path.                                                                                                                                                                                                                                                                                                                                       |
 
 ## Assumptions
 
@@ -50,7 +50,7 @@ Part 2 of the brief asks for queries, pagination, a summary, authorization, and 
 4. **One timezone per organization.** Everyone in an organization sees the same overdue count.
 5. **Email and password accounts.** The brief names no identity provider. Accounts use email and password, and `users.auth_subject` stays reserved for a provider later.
 6. **Joining by request.** A user asks to join an organization by its slug, and an owner or admin approves with any role except owner. A requester learns that a slug exists. That is accepted and rate-limited. Owners and admins can also add an existing user by exact email.
-7. **Demo data comes from the seed.** Task creation is designed, not built, so a new organization's board starts empty. The seeded demo accounts show populated boards.
+7. **Demo data comes from the seed.** A new organization can create tasks, and the seed still provides demo organizations, accounts for every role, and a 2,500-task project.
 
 ## Running It
 
@@ -66,6 +66,8 @@ npm test           # built-tier tests (integration tests start PostgreSQL throug
 npm run e2e        # Playwright end-to-end tests
 npm run dev        # API on :4000, web app on :5173
 ```
+
+`npm run db:reset` re-creates the local databases and reapplies the migrations. It is for local Docker development only.
 
 `npm run storybook -w @taskloom/web` opens the design system.
 
@@ -90,7 +92,7 @@ npm run dev        # API on :4000, web app on :5173
 │   └── ai-transcript/
 ├── packages/contracts/       schema.graphql and TypeScript shared by api and web
 ├── api/
-│   ├── prisma/               schema.prisma and migrations
+│   ├── prisma/               schema/ (one file per domain) and migrations
 │   ├── src/modules/          NestJS modules: identity, org, project, task, board
 │   ├── seed/
 │   └── test/                 integration tests on Testcontainers

@@ -1,0 +1,92 @@
+// Organizations, memberships, join requests, and the status template.
+// Every tenant table keys on (org_id, ...) and every tenant foreign key includes org_id.
+
+model Organization {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  slug      String   @unique @db.Citext
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  settings         OrganizationSettings?
+  memberships      OrgMembership[]
+  joinRequests     OrgJoinRequest[]
+  templateStatuses OrgTemplateStatus[]
+  projects         Project[]
+  labels           Label[]
+  activityEvents   ActivityEvent[]
+
+  @@map("organizations")
+}
+
+model OrganizationSettings {
+  orgId          String   @id @map("org_id") @db.Uuid
+  timezone       String   @default("UTC")
+  priorityLabels String[] @default(["Urgent", "High", "Medium", "Low"]) @map("priority_labels")
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("organization_settings")
+}
+
+model OrgMembership {
+  orgId         String           @map("org_id") @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  role          OrgRole
+  status        MembershipStatus @default(active)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  deactivatedAt DateTime?        @map("deactivated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  decidedJoinRequests OrgJoinRequest[] @relation("JoinRequestDecider")
+  createdProjects     Project[]        @relation("ProjectCreator")
+  assignedTasks       Task[]           @relation("TaskAssignee")
+  createdTasks        Task[]           @relation("TaskCreator")
+  authoredComments    Comment[]        @relation("CommentAuthor")
+  deletedComments     Comment[]        @relation("CommentDeleter")
+  activityEvents      ActivityEvent[]  @relation("ActivityActor")
+
+  @@id([orgId, userId])
+  @@index([userId], map: "org_memberships_by_user", where: raw("status = 'active'::membership_status"))
+  @@map("org_memberships")
+}
+
+model OrgJoinRequest {
+  orgId     String            @map("org_id") @db.Uuid
+  id        String            @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  status    JoinRequestStatus @default(pending)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  decidedAt DateTime?         @map("decided_at") @db.Timestamptz(6)
+  decidedBy String?           @map("decided_by") @db.Uuid
+
+  organization Organization   @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user         User           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  decider      OrgMembership? @relation("JoinRequestDecider", fields: [orgId, decidedBy], references: [orgId, userId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([orgId, id])
+  @@unique([orgId, userId], map: "org_join_requests_pending", where: raw("status = 'pending'::join_request_status"))
+  @@index([userId, createdAt(sort: Desc)], map: "org_join_requests_by_user")
+  @@map("org_join_requests")
+}
+
+model OrgTemplateStatus {
+  orgId      String      @map("org_id") @db.Uuid
+  id         String      @default(dbgenerated("uuidv7()")) @db.Uuid
+  name       String
+  closedKind ClosedKind? @map("closed_kind")
+  isClosed   Boolean     @default(false) @map("is_closed")
+  isDefault  Boolean     @default(false) @map("is_default")
+  position   Int
+
+  organization    Organization    @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projectStatuses ProjectStatus[]
+
+  @@id([orgId, id])
+  @@unique([orgId], map: "org_template_statuses_one_default", where: raw("is_default"))
+  @@map("org_template_statuses")
+}
