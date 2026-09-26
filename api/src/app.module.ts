@@ -1,22 +1,48 @@
 import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
-import { fileURLToPath } from 'node:url';
-import { validateEnv } from './config/env.js';
-import { HealthModule } from './modules/health/health.module.js';
+import { type Env, validateEnv } from './config/env.js';
+import { OrganizationModule } from './modules/organization/organization.module.js';
+import { ViewerModule } from './modules/viewer/viewer.module.js';
+import { graphqlOptions } from './platform/graphql/graphql.options.js';
+import { LimitsPlugin } from './platform/graphql/limits.plugin.js';
+import { TransactionPlugin } from './platform/graphql/transaction.plugin.js';
+import { PlatformModule } from './platform/platform.module.js';
 
-const SCHEMA_PATH = fileURLToPath(import.meta.resolve('@taskloom/contracts/schema.graphql'));
+export interface AppModuleOptions {
+  /** Test builds only: extra schema and resolvers that probe the lifecycle. */
+  extraTypeDefs?: string[];
+  extraProviders?: Provider[];
+}
 
-@Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../.env'], validate: validateEnv }),
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      typePaths: [SCHEMA_PATH],
-      path: '/graphql',
-    }),
-    HealthModule,
-  ],
-})
-export class AppModule {}
+@Module({})
+export class AppModule {
+  static register(options: AppModuleOptions = {}): DynamicModule {
+    return {
+      module: AppModule,
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../.env'], validate: validateEnv }),
+        PlatformModule,
+        GraphQLModule.forRootAsync<ApolloDriverConfig>({
+          driver: ApolloDriver,
+          inject: [LimitsPlugin, TransactionPlugin, ConfigService],
+          useFactory: (
+            limits: LimitsPlugin,
+            transaction: TransactionPlugin,
+            config: ConfigService<Env, true>,
+          ) =>
+            graphqlOptions({
+              limits,
+              transaction,
+              production: config.get('NODE_ENV', { infer: true }) === 'production',
+              extraTypeDefs: options.extraTypeDefs,
+            }),
+        }),
+        ViewerModule,
+        OrganizationModule,
+      ],
+      providers: options.extraProviders ?? [],
+    };
+  }
+}
