@@ -22,6 +22,8 @@ export const PROBE_TYPE_DEFS = /* GraphQL */ `
     writeInQuery: Boolean!
     leakyFailure: Boolean!
     slowProbe(ms: Int!): Boolean!
+    "Runs the between hook mid-request (T22: another session commits while this request reads)."
+    commitDuringRequest: Boolean!
   }
 
   extend type Mutation {
@@ -65,6 +67,12 @@ export class ProbeResolver {
   @Query('leakyFailure')
   leakyFailure(): boolean {
     throw new Error('connection string postgresql://secret@internal');
+  }
+
+  @Query('commitDuringRequest')
+  async commitDuringRequest(): Promise<boolean> {
+    await probeHooks.between?.();
+    return true;
   }
 
   @Query('slowProbe')
