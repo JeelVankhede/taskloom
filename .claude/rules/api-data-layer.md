@@ -40,6 +40,7 @@ See `api-architecture.md`. Repositories use the request transaction from CLS, ne
 
 - **Schema Location:** `api/prisma/schema/*.prisma`, one file per domain (500-line rule). Partial indexes use the `partialIndexes` preview feature.
 - Use UUIDs for all primary keys unless otherwise specified.
+- Timestamps default to `@default(dbgenerated("transaction_timestamp()"))`, never `@default(now())`: Prisma sends `now()` values itself, which the column grants reject, and reads a `now()` database default back as `now()`.
 - Use `BigInt` or `Decimal` for financial amounts (never Float).
 - Enforce constraints (unique, default values) at the schema level.
 

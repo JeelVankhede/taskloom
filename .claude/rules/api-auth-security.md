@@ -33,7 +33,8 @@ Before changing auth or sensitive-data behavior, identify caller permissions, re
 Use existing guards and the pure `authorize(role, capability)` function rather than inventing parallel authorization logic.
 
 - Passwords are hashed with argon2id. Only `app_identity` can read the hash column.
-- Access token: short-lived JWT (15 minutes), sent as a bearer header. Refresh token: rotating, stored hashed, sent only as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/auth`.
+- Access token: 15-minute HS256 JWT with `iss: taskloom-api` and `aud: taskloom-web`, sent as a bearer header. Refresh token: the `tl_refresh` cookie (`HttpOnly`, `SameSite=Strict`, `Path=/auth`, `Secure` outside development), stored as a SHA-256 hash, rotated strictly (reuse revokes the family), 30 days absolute per family.
+- `/auth` routes check `Origin` against `WEB_ORIGIN` and run in short `app_identity` transactions; password hashing stays outside the transaction.
 - Extract the user id from the verified token `sub`, never from request bodies or GraphQL args.
 - The selected org id comes from a request header. The request lifecycle reads the caller's own membership once; no membership means `NOT_FOUND`.
 - Role-changing and membership-approving code paths need tests for every role transition (a bug that writes `role = owner` is an org takeover).

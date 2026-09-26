@@ -164,6 +164,7 @@ Database checks enforce every rule. `@taskloom/contracts` exports the same rules
 | `tasks.is_closed` | Trigger | Copied from the status, which the trigger reads `FOR SHARE`. An archived target status fails with `STATUS_ARCHIVED`. A direct write is rejected. |
 | `tasks.closed_at` | Trigger | Set on the task's own move into a closed status. Kept on its own move between closed statuses. Cleared whenever the task becomes open. A flip of a status to closed leaves it empty, so no date is invented. |
 | `project_statuses.is_closed`, `org_template_statuses.is_closed` | Trigger | Always `closed_kind IS NOT NULL` |
+| `*.created_at`, `*.updated_at` on insert | Database default | `transaction_timestamp()`. The API cannot write either column. |
 | `*.updated_at` | Trigger | User-visible edits only. Rank moves and rebalances do not count. |
 | `tasks.rank` on move | API (Designed) | Generated from neighbor ids. Clients never send ranks. |
 | Activity events | API | Written in the mutation transaction. `from` and `to` come from `UPDATE ... RETURNING OLD, NEW`. A save that changes nothing writes no event. |
@@ -242,8 +243,8 @@ API-enforced by design: the role matrix, approval roles (never owner), rate limi
 
 | Flow | Behavior |
 |---|---|
-| Sign up, sign in | `/auth` routes under `app_identity`. argon2id hashes. Unknown email and wrong password return the same `INVALID_CREDENTIALS` in the same time. The access token is a 15-minute JWT whose subject is the user id. |
-| Refresh, sign out | The refresh token is an `HttpOnly`, `SameSite=Strict` cookie on `/auth`. Every refresh rotates it. Reuse of a rotated token revokes the family. Sign out revokes the family and clears the cookie. |
+| Sign up, sign in | `/auth` routes under `app_identity`. argon2id hashes. Passwords are 10 to 128 characters and not the email. Unknown email and wrong password return the same `INVALID_CREDENTIALS` in the same time. The access token is a 15-minute HS256 JWT with `sub` (user id), `iss: taskloom-api`, and `aud: taskloom-web`. Sign up returns a session. |
+| Refresh, sign out | The refresh token is the `tl_refresh` cookie: `HttpOnly`, `SameSite=Strict`, `Path=/auth`, `Secure` outside development. `/auth` also requires `Origin` to be the web app. Every refresh rotates the token; a family lives 30 days from sign in (absolute). Rotation is strict: reuse of a rotated token revokes the family. Sign out revokes the family and clears the cookie. |
 | Create organization | Any signed-in user, 5 per day. `app.create_organization` sets its own org context and inserts the org, its settings, the owner membership, and the default status template in one transaction. |
 | Request to join | `app.submit_join_request(slug)` resolves the slug, rejects an existing member with `ALREADY_MEMBER` or a pending duplicate with `JOIN_REQUEST_PENDING`, and inserts the request. The requester can cancel a pending request. |
 | Approve or reject | Owner or admin. Approval inserts or reactivates the membership with the chosen role (admin, member, or contributor), marks the request, and writes `member.added` with `via: join_request`. Rejection writes `member.join_request_rejected`. |
