@@ -1,10 +1,15 @@
 import { JwtService } from '@nestjs/jwt';
+import { TOKEN_AUDIENCE, TOKEN_ISSUER } from '@taskloom/contracts';
 import { describe, expect, it } from 'vitest';
 import { TokenVerifier } from './token-verifier.js';
 
 const SECRET = 'unit-test-secret-that-is-at-least-32-chars';
 const USER = '01a0df4b-82b8-76bb-9ef8-34226e862dd6';
-const jwt = new JwtService({ secret: SECRET });
+const jwt = new JwtService({
+  secret: SECRET,
+  signOptions: { issuer: TOKEN_ISSUER, audience: TOKEN_AUDIENCE },
+});
+const bare = new JwtService({ secret: SECRET });
 const verifier = new TokenVerifier(jwt);
 
 describe('TokenVerifier', () => {
@@ -19,6 +24,11 @@ describe('TokenVerifier', () => {
     ['wrong secret', `Bearer ${jwt.sign({ sub: USER }, { secret: 'x'.repeat(40) })}`],
     ['non-uuid subject', `Bearer ${jwt.sign({ sub: 'admin' })}`],
     ['no subject', `Bearer ${jwt.sign({ role: 'owner' })}`],
+    ['no issuer or audience', `Bearer ${bare.sign({ sub: USER })}`],
+    [
+      'wrong audience',
+      `Bearer ${bare.sign({ sub: USER }, { issuer: TOKEN_ISSUER, audience: 'other' })}`,
+    ],
     [
       'alg none',
       `Bearer ${Buffer.from('{"alg":"none"}').toString('base64url')}.${Buffer.from(`{"sub":"${USER}"}`).toString('base64url')}.`,
