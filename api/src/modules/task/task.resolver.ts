@@ -38,6 +38,16 @@ export class TaskResolver {
     return this.loaders.labelsOf(task.id);
   }
 
+  @ResolveField('project')
+  project(@Parent() task: TaskRow) {
+    return this.loaders.project(task.projectId);
+  }
+
+  @ResolveField('createdBy')
+  createdBy(@Parent() task: TaskRow) {
+    return this.loaders.user(task.createdById);
+  }
+
   /** Returned only while the task is closed (design reference 7.3.4). */
   @ResolveField('closedAt')
   closedAt(@Parent() task: TaskRow): Date | null {

@@ -43,6 +43,12 @@ export class ProjectRepository {
     return row;
   }
 
+  async findByKey(key: string): Promise<ProjectRow | undefined> {
+    const [row] = await this.db.tx.$queryRaw<ProjectRow[]>`
+      SELECT ${COLUMNS} FROM projects p WHERE p.org_id = ${this.db.orgId}::uuid AND p.key = ${key}`;
+    return row;
+  }
+
   /** Copies the org template and records project.created (app.create_project). */
   async create(input: { name: string; key: string; description: string | null }): Promise<string> {
     const [row] = await this.db.tx.$queryRaw<{ id: string }[]>`

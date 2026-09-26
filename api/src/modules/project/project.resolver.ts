@@ -1,7 +1,8 @@
-import { Args, Mutation, ResolveField, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, ResolveField, Resolver } from '@nestjs/graphql';
 import { Capability, LENGTH, PROJECT_KEY_PATTERN } from '@taskloom/contracts';
 import { DbContext } from '../../platform/database/db-context.js';
-import { validationFailed } from '../../platform/errors/domain-error.js';
+import { notFound, validationFailed } from '../../platform/errors/domain-error.js';
+import { assertId } from '../../platform/graphql/ids.js';
 import {
   type Connection,
   decodeCursor,
@@ -67,5 +68,30 @@ export class ProjectMutationResolver {
     }
     const id = await this.projects.create({ name, key, description });
     return (await this.projects.find(id))!;
+  }
+}
+
+@Resolver()
+export class ProjectQueryResolver {
+  constructor(
+    private readonly repo: ProjectRepository,
+    private readonly db: DbContext,
+  ) {}
+
+  @Query('project')
+  async project(@Args('id') id: string): Promise<ProjectRow> {
+    this.db.require(Capability.READ_ORG);
+    const project = await this.repo.find(assertId(id, 'project'));
+    if (!project) throw notFound('project');
+    return project;
+  }
+
+  /** Keys are stored upper case; any letter case is accepted. */
+  @Query('projectByKey')
+  async projectByKey(@Args('key') key: string): Promise<ProjectRow> {
+    this.db.require(Capability.READ_ORG);
+    const project = await this.repo.findByKey(key.trim().toUpperCase());
+    if (!project) throw notFound('project');
+    return project;
   }
 }

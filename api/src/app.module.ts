@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { type Env, validateEnv } from './config/env.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
+import { LabelModule } from './modules/label/label.module.js';
 import { MembershipModule } from './modules/membership/membership.module.js';
 import { OrganizationModule } from './modules/organization/organization.module.js';
 import { ProjectModule } from './modules/project/project.module.js';
@@ -51,6 +52,7 @@ export class AppModule {
         MembershipModule,
         ProjectModule,
         TaskModule,
+        LabelModule,
       ],
       providers: options.extraProviders ?? [],
     };
