@@ -51,6 +51,9 @@ Use the existing test framework and fixture style. Prefer focused integration te
 - Database invariant tests (T1 to T28 in the design reference) run as `app_user`, never as the owner or a superuser, because a superuser bypasses row-level security.
 - Only Built-tier tests are implemented. Test ids match the design reference.
 - A statement-count test fails if the board query exceeds its SQL ceiling.
+- API tests live in `api/test/api/` and boot the real app (`startApp`) against PostgreSQL through a PgBouncer container in transaction mode. Test-only schema and resolvers (`test/api/support/probe.ts`) are registered only through `AppModule.register({ extraTypeDefs, extraProviders })`.
+- App logs are silent in tests; set `TEST_LOG_LEVEL=error` to see them.
+- `vitest.config.ts` aliases `graphql` to its CommonJS entry, as Node resolves it. Without it, Vite loads two copies of `graphql`.
 
 ### Mocking Conventions
 

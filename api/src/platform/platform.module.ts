@@ -1,0 +1,41 @@
+import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ClsModule } from 'nestjs-cls';
+import { LoggerModule } from 'nestjs-pino';
+import type { Env } from '../config/env.js';
+import { TokenVerifier } from './auth/token-verifier.js';
+import { DbContext } from './database/db-context.js';
+import { PrismaService } from './database/prisma.service.js';
+import { LimitsPlugin } from './graphql/limits.plugin.js';
+import { TransactionPlugin } from './graphql/transaction.plugin.js';
+
+/** Cross-cutting infrastructure: database, request context, auth verification, limits, logging. */
+@Global()
+@Module({
+  imports: [
+    ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+    ThrottlerModule.forRoot([]),
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        secret: config.get('JWT_ACCESS_SECRET', { infer: true }),
+        verifyOptions: { algorithms: ['HS256'] },
+      }),
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        pinoHttp: {
+          level: config.get('LOG_LEVEL', { infer: true }),
+          genReqId: (req) => String(req.headers['x-request-id']),
+          redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+        },
+      }),
+    }),
+  ],
+  providers: [PrismaService, DbContext, TokenVerifier, LimitsPlugin, TransactionPlugin],
+  exports: [PrismaService, DbContext, TokenVerifier, LimitsPlugin, TransactionPlugin],
+})
+export class PlatformModule {}
