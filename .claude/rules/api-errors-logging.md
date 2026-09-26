@@ -32,7 +32,7 @@ Before changing error handling, logging, or observability behavior, identify pub
 - GraphQL errors carry `extensions.code` from the catalog in `docs/design-reference.md` section 7.5. Throw domain errors; one GraphQL error formatter maps them.
 - A row hidden by row-level security surfaces as `NOT_FOUND`, never `FORBIDDEN`.
 - `/auth/*` REST routes use NestJS `HttpException` classes and the global `ExceptionFilter`.
-- Never leak stack traces, SQL errors, or config values to clients.
+- Never leak stack traces, SQL errors, or config values to clients. Unexpected errors are masked as `INTERNAL_SERVER_ERROR` and logged in full server-side, never swallowed.
 
 ### Logging & Observability
 

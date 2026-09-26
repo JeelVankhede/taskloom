@@ -348,6 +348,9 @@ Errors carry `extensions.code`.
 | Labels | `LABEL_NAME_TAKEN`, `LABEL_ARCHIVED`, `LABEL_LIMIT_REACHED` |
 | Tasks | `TASK_ARCHIVED`, `RANK_CONFLICT` |
 | Bugs | `DERIVED_COLUMN_WRITE` |
+| Unexpected | `INTERNAL_SERVER_ERROR`: the message is masked for the client and the full error is logged with the request id |
+
+Database failures map to these codes in one place: codes the database raises (SQLSTATE `P0001`) pass through, check and unique violations become `VALIDATION_FAILED`, and foreign key, permission, and row-level security violations become `NOT_FOUND`, so nothing about hidden rows leaks. Lifecycle failures carry an HTTP status: 401 for `UNAUTHENTICATED`, 429 for `RATE_LIMITED`, 400 for `VALIDATION_FAILED` and `QUERY_TOO_COMPLEX`.
 
 ## 8. Other Queries and Indexes
 
