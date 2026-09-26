@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import type { ApolloDriverConfig } from '@nestjs/apollo';
 import { formatError } from '../errors/format-error.js';
 import type { LimitsPlugin } from './limits.plugin.js';
+import { DateScalar, DateTimeScalar, ENUM_RESOLVERS } from './scalars.js';
 import type { GraphQLContext, TransactionPlugin } from './transaction.plugin.js';
 
 const SCHEMA_PATH = fileURLToPath(import.meta.resolve('@taskloom/contracts/schema.graphql'));
@@ -19,6 +20,7 @@ export function graphqlOptions(input: GraphQLOptionsInput): ApolloDriverConfig {
   return {
     typePaths: [SCHEMA_PATH],
     typeDefs: input.extraTypeDefs,
+    resolvers: { Date: DateScalar, DateTime: DateTimeScalar, ...ENUM_RESOLVERS },
     path: '/graphql',
     context: ({ req }: GraphQLContext) => ({ req }),
     plugins: [input.limits, input.transaction],

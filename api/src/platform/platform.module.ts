@@ -11,6 +11,13 @@ import { IdentityTx } from './database/identity-tx.js';
 import { PrismaService } from './database/prisma.service.js';
 import { LimitsPlugin } from './graphql/limits.plugin.js';
 import { TransactionPlugin } from './graphql/transaction.plugin.js';
+import { ActivityRecorder } from './history/activity-recorder.js';
+import { Loaders } from './loaders/loaders.js';
+import {
+  ACTION_LIMITS,
+  ActionLimiter,
+  DEFAULT_ACTION_LIMITS,
+} from './rate-limit/action-limiter.js';
 
 /** Cross-cutting infrastructure: database, request context, auth verification, limits, logging. */
 @Global()
@@ -36,7 +43,18 @@ import { TransactionPlugin } from './graphql/transaction.plugin.js';
       }),
     }),
   ],
-  providers: [PrismaService, DbContext, IdentityTx, TokenVerifier, LimitsPlugin, TransactionPlugin],
+  providers: [
+    PrismaService,
+    DbContext,
+    IdentityTx,
+    TokenVerifier,
+    LimitsPlugin,
+    TransactionPlugin,
+    ActivityRecorder,
+    ActionLimiter,
+    Loaders,
+    { provide: ACTION_LIMITS, useValue: DEFAULT_ACTION_LIMITS },
+  ],
   exports: [
     PrismaService,
     DbContext,
@@ -44,6 +62,9 @@ import { TransactionPlugin } from './graphql/transaction.plugin.js';
     TokenVerifier,
     LimitsPlugin,
     TransactionPlugin,
+    ActivityRecorder,
+    ActionLimiter,
+    Loaders,
     JwtModule,
   ],
 })
