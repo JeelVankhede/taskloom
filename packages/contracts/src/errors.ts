@@ -34,6 +34,7 @@ export const ErrorCode = {
   TASK_ARCHIVED: 'TASK_ARCHIVED',
   RANK_CONFLICT: 'RANK_CONFLICT',
   DERIVED_COLUMN_WRITE: 'DERIVED_COLUMN_WRITE',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

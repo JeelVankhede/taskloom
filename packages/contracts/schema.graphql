@@ -1,11 +1,23 @@
-# Taskloom GraphQL schema (schema-first).
-# Task 1.1 types and Task 2.1 queries are added in the schema and query phases.
+# Taskloom GraphQL schema (schema-first). Grows phase by phase; see docs/implementation-plan.md.
+#
+# Org selection: `viewer` runs without an organization. Every other root field needs the
+# selected organization id in the `X-Org-Id` header. A hidden row is NOT_FOUND, never FORBIDDEN.
 
 type Query {
-  "Liveness probe. Replaced by the real root fields in the query phase."
-  health: Health!
+  "The signed-in user. Runs without an organization."
+  viewer: Viewer!
+  "The organization selected by the X-Org-Id header."
+  organization: Organization!
 }
 
-type Health {
-  ok: Boolean!
+type Viewer {
+  id: ID!
+  email: String!
+  displayName: String!
+}
+
+type Organization {
+  id: ID!
+  slug: String!
+  name: String!
 }
