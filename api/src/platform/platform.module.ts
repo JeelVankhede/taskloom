@@ -7,6 +7,7 @@ import { LoggerModule } from 'nestjs-pino';
 import type { Env } from '../config/env.js';
 import { TokenVerifier } from './auth/token-verifier.js';
 import { DbContext } from './database/db-context.js';
+import { IdentityTx } from './database/identity-tx.js';
 import { PrismaService } from './database/prisma.service.js';
 import { LimitsPlugin } from './graphql/limits.plugin.js';
 import { TransactionPlugin } from './graphql/transaction.plugin.js';
@@ -35,7 +36,15 @@ import { TransactionPlugin } from './graphql/transaction.plugin.js';
       }),
     }),
   ],
-  providers: [PrismaService, DbContext, TokenVerifier, LimitsPlugin, TransactionPlugin],
-  exports: [PrismaService, DbContext, TokenVerifier, LimitsPlugin, TransactionPlugin],
+  providers: [PrismaService, DbContext, IdentityTx, TokenVerifier, LimitsPlugin, TransactionPlugin],
+  exports: [
+    PrismaService,
+    DbContext,
+    IdentityTx,
+    TokenVerifier,
+    LimitsPlugin,
+    TransactionPlugin,
+    JwtModule,
+  ],
 })
 export class PlatformModule {}

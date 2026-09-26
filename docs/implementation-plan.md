@@ -244,7 +244,7 @@ Branch `feat/web-foundation`.
 - **Wrapper components:** Button, TextField, Dialog, Card, PageHeader, EmptyState, ErrorState, skeletons, UserChip, PriorityChip, StatusChip, and DateBadge. Each has Storybook stories that pass the a11y addon.
 - **App shell:**
   - React Router routes and guards from section 3.6.
-  - The auth module: in-memory token, refresh on load, and a single retry on 401.
+  - The auth module: in-memory token, refresh on load, and a single retry on 401. Refresh rotation is strict (Phase 3), so all tabs must share one refresh call (for example a `BroadcastChannel` or Web Locks leader); two tabs refreshing independently would revoke the session.
   - Apollo links for the auth header, the org header, and error mapping.
   - The org switcher, and an error boundary per route.
 - Sign in and sign up screens built with React Hook Form and Zod, using the rules from `@taskloom/contracts`.
@@ -359,3 +359,20 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | T22 | Proved now with test-only probe resolvers; the real `tasks` plus `taskSummary` version comes in Phase 6 |
 | Schema this phase | `viewer { id email displayName }` (org-less) and `organization { id slug name }` (org-scoped) replace the placeholder |
 | Dependencies | `nestjs-cls`, `@nestjs/jwt`, `@nestjs/passport` with `passport-jwt`, `graphql-depth-limit`, `graphql-query-complexity`, `nestjs-pino` with `pino-http`, `@nestjs/throttler`, `dataloader` |
+
+### Phase 3: Accounts and authentication
+
+| Topic | Decision |
+| --- | --- |
+| Hashing | `argon2` (argon2id, 19 MiB, 2 iterations, parallelism 1). Unknown emails verify against a dummy hash, so both failures take the same time and return the same `INVALID_CREDENTIALS`. |
+| Password rules | 10 to 128 characters, no composition rules, not equal to the email. Shared as `checkSignUp` in `@taskloom/contracts`. |
+| Session lifetime | 30 days absolute from sign in; rotated tokens inherit the family expiry |
+| Concurrent refresh | Strict: any reuse of a rotated token revokes the family. The web client shares one refresh call across tabs (Phase 7). |
+| Cookie | `tl_refresh`, `HttpOnly`, `SameSite=Strict`, `Path=/auth`, `Secure` except in development |
+| CSRF | `/auth` rejects requests whose `Origin` is not `WEB_ORIGIN` (403 `FORBIDDEN`) |
+| Token claims | `iss: taskloom-api`, `aud: taskloom-web`, checked by the GraphQL verifier |
+| Rate limits | Sign in 10 per minute per IP and 5 per minute per email; sign up 5 per hour; refresh 60 per minute; sign out 30 per minute. In memory. |
+| Existing email | 409 `EMAIL_TAKEN`, as planned |
+| Passport | Removed (`@nestjs/passport`, `passport`, `passport-jwt`); tokens are verified directly. `@types/express` added as a dev dependency, which Passport had provided transitively. |
+| Sign-up response | 201 with a session; the web app then opens onboarding |
+| Timestamps | Found while building: Prisma sends `created_at` and `updated_at` itself for `@default(now())`, which the column grants reject. All timestamp defaults are now `@default(dbgenerated("transaction_timestamp()"))` (the same function as `now()`; Prisma reads `now()` back as `now()` and would drift). PostgreSQL fills them; the API can never write one. |

@@ -3,6 +3,7 @@ import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { type Env, validateEnv } from './config/env.js';
+import { IdentityModule } from './modules/identity/identity.module.js';
 import { OrganizationModule } from './modules/organization/organization.module.js';
 import { ViewerModule } from './modules/viewer/viewer.module.js';
 import { graphqlOptions } from './platform/graphql/graphql.options.js';
@@ -39,6 +40,7 @@ export class AppModule {
               extraTypeDefs: options.extraTypeDefs,
             }),
         }),
+        IdentityModule,
         ViewerModule,
         OrganizationModule,
       ],
