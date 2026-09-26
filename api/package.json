@@ -13,7 +13,7 @@
     "prisma:generate": "prisma generate",
     "migrate": "prisma migrate deploy",
     "migrate:dev": "sh ../scripts/prisma-migrate-dev.sh",
-    "seed": "node seed/index.ts",
+    "seed": "tsc -p tsconfig.seed.json && node dist-seed/seed/index.js",
     "prebuild": "prisma generate"
   },
   "dependencies": {

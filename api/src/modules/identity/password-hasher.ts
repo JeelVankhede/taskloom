@@ -2,8 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import argon2 from 'argon2';
 
-/** OWASP argon2id parameters: 19 MiB memory, 2 iterations, parallelism 1. */
-const OPTIONS = { type: argon2.argon2id, memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const;
+import { ARGON2_OPTIONS as OPTIONS } from './argon2-options.js';
 
 @Injectable()
 export class PasswordHasher implements OnModuleInit {
