@@ -12,6 +12,11 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      # prisma.config.ts requires these to load. `prisma generate` never connects, and the
+      # database tests start their own PostgreSQL through Testcontainers and override them.
+      DIRECT_DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+      SHADOW_DATABASE_URL: postgresql://unused:unused@localhost:5432/unused_shadow
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
