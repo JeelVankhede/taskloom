@@ -376,3 +376,20 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Passport | Removed (`@nestjs/passport`, `passport`, `passport-jwt`); tokens are verified directly. `@types/express` added as a dev dependency, which Passport had provided transitively. |
 | Sign-up response | 201 with a session; the web app then opens onboarding |
 | Timestamps | Found while building: Prisma sends `created_at` and `updated_at` itself for `@default(now())`, which the column grants reject. All timestamp defaults are now `@default(dbgenerated("transaction_timestamp()"))` (the same function as `now()`; Prisma reads `now()` back as `now()` and would drift). PostgreSQL fills them; the API can never write one. |
+
+### Phase 4: Organizations, members, join requests, projects, task creation
+
+| Topic | Decision |
+| --- | --- |
+| Requester details | Owners and admins see a requester's id, display name, and email. Mechanism: one more `users` policy for `app_user` (`join_requester_read`): a user row is visible when that user has a join request in the current org and the caller is an active owner or admin there. Verified on a scratch database before the migration was written. |
+| Email visibility | `User.email` for the user and for owners and admins; `null` for everyone else, including in the members list |
+| Members list | Every status, by display name then user id; 50 per page, 100 at most |
+| `addMember` | Unknown email is `NOT_FOUND`; an active member is `ALREADY_MEMBER`; a deactivated member is reactivated with the chosen role; a pending request from that user is marked approved and the event records its id |
+| Admins | May grant `admin`, `member`, or `contributor`. Nobody grants `owner` by approval or add (`FORBIDDEN`). |
+| Task type | Core fields now (`id`, `number`, `identifier`, `title`, `description`, `priority`, `dueDate`, `status`, `assignee`, `labels`, `isClosed`, `closedAt`, `createdAt`); Phase 6 adds the rest |
+| `createTask` | Every role. Archived project `PROJECT_ARCHIVED`, foreign status `STATUS_NOT_IN_PROJECT`, archived status `STATUS_ARCHIVED`, inactive assignee `ASSIGNEE_INACTIVE`, non-member `ASSIGNEE_NOT_MEMBER`, archived label `LABEL_ARCHIVED`, unknown label `NOT_FOUND`, more than 20 labels or a bad or missing due date `VALIDATION_FAILED` |
+| Event payloads | `task.created {number, title, status_id, priority, assignee_id, due_date, label_ids}`, `member.added {user_id, role, via, request_id?}`, `member.join_request_rejected {user_id, request_id}` |
+| Lists | `organization.projects(includeArchived = false)` by name; `organization.joinRequests(status = PENDING)` oldest first, owners and admins only |
+| Limits | Org creation 5 per user per day, join requests 10 per user per hour, member lookups 30 per org per hour; in memory |
+| Return types | `createOrganization` returns `OrganizationSummary` (id, slug, name): it runs without an organization, so org-scoped fields are not resolvable in that request. `approveJoinRequest` and `addMember` return `Member`. |
+| Input errors | Invalid or missing variables (for example an impossible `Date`) are `VALIDATION_FAILED`; ids that are not uuids are `NOT_FOUND` |
