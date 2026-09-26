@@ -1,0 +1,98 @@
+// Task 1.1 ORM definitions, split by domain. Prisma owns tables, keys, relations,
+// enums, and partial indexes. Hand-written SQL migrations own everything Prisma
+// cannot express: roles, grants, row-level security, triggers, functions, checks,
+// expression indexes, deferrable constraints, collations, and history partitions.
+// See docs/1.2-data-model.md section 6 and docs/design-reference.md.
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../../src/generated/prisma"
+  moduleFormat    = "esm"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrgRole {
+  owner
+  admin
+  member
+  contributor
+
+  @@map("org_role")
+}
+
+enum MembershipStatus {
+  active
+  deactivated
+
+  @@map("membership_status")
+}
+
+enum JoinRequestStatus {
+  pending
+  approved
+  rejected
+  canceled
+
+  @@map("join_request_status")
+}
+
+enum ProjectState {
+  active
+  archived
+
+  @@map("project_state")
+}
+
+enum ClosedKind {
+  completed
+  canceled
+
+  @@map("closed_kind")
+}
+
+enum ActorKind {
+  user
+  system
+
+  @@map("actor_kind")
+}
+
+// Grow-only. Values are never renamed or removed (design reference section 7.4).
+enum ActivityType {
+  task_created                @map("task.created")
+  task_title_changed          @map("task.title_changed")
+  task_description_changed    @map("task.description_changed")
+  task_status_changed         @map("task.status_changed")
+  task_priority_changed       @map("task.priority_changed")
+  task_assignee_changed       @map("task.assignee_changed")
+  task_due_date_changed       @map("task.due_date_changed")
+  task_labels_changed         @map("task.labels_changed")
+  task_archived               @map("task.archived")
+  task_restored               @map("task.restored")
+  comment_edited              @map("comment.edited")
+  comment_deleted             @map("comment.deleted")
+  project_created             @map("project.created")
+  project_updated             @map("project.updated")
+  project_archived            @map("project.archived")
+  project_restored            @map("project.restored")
+  status_created              @map("status.created")
+  status_updated              @map("status.updated")
+  status_closed_kind_changed  @map("status.closed_kind_changed")
+  status_archived             @map("status.archived")
+  label_created               @map("label.created")
+  label_updated               @map("label.updated")
+  label_archived              @map("label.archived")
+  member_added                @map("member.added")
+  member_join_request_rejected @map("member.join_request_rejected")
+  member_role_changed         @map("member.role_changed")
+  member_deactivated          @map("member.deactivated")
+  member_reactivated          @map("member.reactivated")
+  org_settings_changed        @map("org.settings_changed")
+  org_template_changed        @map("org.template_changed")
+
+  @@map("activity_type")
+}

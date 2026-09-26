@@ -1,0 +1,55 @@
+// Projects and their per-project status columns.
+
+model Project {
+  orgId           String       @map("org_id") @db.Uuid
+  id              String       @default(dbgenerated("uuidv7()")) @db.Uuid
+  key             String
+  name            String
+  description     String?
+  state           ProjectState @default(active)
+  defaultStatusId String       @map("default_status_id") @db.Uuid
+  nextTaskNumber  Int          @default(1) @map("next_task_number")
+  rankEpoch       Int          @default(0) @map("rank_epoch")
+  createdBy       String       @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  archivedAt      DateTime?    @map("archived_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  creator       OrgMembership @relation("ProjectCreator", fields: [orgId, createdBy], references: [orgId, userId], onDelete: NoAction, onUpdate: NoAction)
+  // Deferrable in SQL: a project and its statuses are created in one transaction.
+  defaultStatus ProjectStatus @relation("ProjectDefaultStatus", fields: [orgId, id, defaultStatusId], references: [orgId, projectId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  statuses       ProjectStatus[] @relation("ProjectStatuses")
+  tasks          Task[]
+  activityEvents ActivityEvent[]
+
+  @@id([orgId, id])
+  @@unique([orgId, key])
+  @@map("projects")
+}
+
+model ProjectStatus {
+  orgId            String      @map("org_id") @db.Uuid
+  id               String      @default(dbgenerated("uuidv7()")) @db.Uuid
+  projectId        String      @map("project_id") @db.Uuid
+  templateStatusId String?     @map("template_status_id") @db.Uuid
+  name             String
+  closedKind       ClosedKind? @map("closed_kind")
+  isClosed         Boolean     @default(false) @map("is_closed")
+  position         Int
+  archivedAt       DateTime?   @map("archived_at") @db.Timestamptz(6)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  project        Project            @relation("ProjectStatuses", fields: [orgId, projectId], references: [orgId, id], onDelete: NoAction, onUpdate: NoAction)
+  templateStatus OrgTemplateStatus? @relation(fields: [orgId, templateStatusId], references: [orgId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  defaultOf Project[] @relation("ProjectDefaultStatus")
+  tasks     Task[]
+
+  @@id([orgId, id])
+  // Target of the composite foreign keys that keep a task's status inside its own project.
+  @@unique([orgId, projectId, id])
+  @@map("project_statuses")
+}
