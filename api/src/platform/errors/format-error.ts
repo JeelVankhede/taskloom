@@ -9,7 +9,6 @@ const logger = new Logger('GraphQL');
 const PASSTHROUGH_CODES = new Set<string>([
   'GRAPHQL_PARSE_FAILED',
   'GRAPHQL_VALIDATION_FAILED',
-  'BAD_USER_INPUT',
   ErrorCode.QUERY_TOO_COMPLEX,
   ErrorCode.VALIDATION_FAILED,
 ]);
@@ -35,6 +34,14 @@ export function formatError(
   }
 
   const code = formatted.extensions?.code;
+  // Bad variables and scalar values (for example an invalid Date) are input validation failures.
+  if (code === 'BAD_USER_INPUT') {
+    return {
+      message: formatted.message,
+      path: formatted.path,
+      extensions: { code: ErrorCode.VALIDATION_FAILED },
+    };
+  }
   if (typeof code === 'string' && PASSTHROUGH_CODES.has(code)) {
     return {
       message: formatted.message,

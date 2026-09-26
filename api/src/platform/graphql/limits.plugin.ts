@@ -1,7 +1,7 @@
 import type { ApolloServerPlugin, GraphQLRequestListener } from '@apollo/server';
 import { Injectable } from '@nestjs/common';
 import { ErrorCode, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX } from '@taskloom/contracts';
-import { validate } from 'graphql';
+import { GraphQLError, validate } from 'graphql';
 import depthLimit from 'graphql-depth-limit';
 import { type ComplexityEstimator, getComplexity, simpleEstimator } from 'graphql-query-complexity';
 import { DomainError } from '../errors/domain-error.js';
@@ -48,6 +48,11 @@ export class LimitsPlugin implements ApolloServerPlugin {
           });
         } catch (error) {
           if (error instanceof DomainError) throw requestError(error);
+          // getComplexity coerces the variables itself, so an invalid or missing variable
+          // (for example a bad Date) surfaces here, before execution: it is invalid input.
+          if (error instanceof GraphQLError) {
+            throw requestError(new DomainError(ErrorCode.VALIDATION_FAILED, error.message));
+          }
           throw error;
         }
         if (cost > LIMITS.maxCost) {

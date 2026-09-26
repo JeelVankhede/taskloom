@@ -112,6 +112,15 @@ CREATE POLICY own_requests ON org_join_requests FOR ALL TO app_join
   WITH CHECK (user_id = (SELECT app.current_user_id()) AND status IN ('pending', 'canceled'));
 
 CREATE POLICY join_lookup ON organizations FOR SELECT TO app_join USING (true);
+
+-- users, API role: requesters are visible to the current org's owners and admins
+CREATE POLICY join_requester_read ON users FOR SELECT TO app_user
+  USING (EXISTS (SELECT 1 FROM org_join_requests r
+                 WHERE r.org_id = (SELECT app.current_org_id()) AND r.user_id = users.id)
+         AND EXISTS (SELECT 1 FROM org_memberships m
+                     WHERE m.org_id = (SELECT app.current_org_id())
+                       AND m.user_id = (SELECT app.current_user_id())
+                       AND m.status = 'active' AND m.role IN ('owner', 'admin')));
 GRANT SELECT (id, slug, name) ON organizations TO app_join;
 ```
 
@@ -351,7 +360,7 @@ Errors carry `extensions.code`.
 | Bugs | `DERIVED_COLUMN_WRITE` |
 | Unexpected | `INTERNAL_SERVER_ERROR`: the message is masked for the client and the full error is logged with the request id |
 
-Database failures map to these codes in one place: codes the database raises (SQLSTATE `P0001`) pass through, check and unique violations become `VALIDATION_FAILED`, and foreign key, permission, and row-level security violations become `NOT_FOUND`, so nothing about hidden rows leaks. Lifecycle failures carry an HTTP status: 401 for `UNAUTHENTICATED`, 429 for `RATE_LIMITED`, 400 for `VALIDATION_FAILED` and `QUERY_TOO_COMPLEX`.
+Invalid or missing GraphQL variables are `VALIDATION_FAILED`, and an id argument that is not a uuid is `NOT_FOUND`. Database failures map to these codes in one place: codes the database raises (SQLSTATE `P0001`) pass through, check and unique violations become `VALIDATION_FAILED`, and foreign key, permission, and row-level security violations become `NOT_FOUND`, so nothing about hidden rows leaks. Lifecycle failures carry an HTTP status: 401 for `UNAUTHENTICATED`, 429 for `RATE_LIMITED`, 400 for `VALIDATION_FAILED` and `QUERY_TOO_COMPLEX`.
 
 ## 8. Other Queries and Indexes
 
