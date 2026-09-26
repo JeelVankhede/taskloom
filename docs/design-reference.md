@@ -98,8 +98,8 @@ CREATE POLICY org_peer_read ON users FOR SELECT TO app_user
   USING (EXISTS (SELECT 1 FROM org_memberships m
                  WHERE m.org_id = (SELECT app.current_org_id()) AND m.user_id = users.id));
 
-GRANT SELECT ON users TO app_user;
-GRANT UPDATE (display_name) ON users TO app_user;
+-- password_hash and auth_subject are never readable by the API role (T17).
+GRANT SELECT (id, email, display_name, created_at, updated_at), UPDATE (display_name) ON users TO app_user;
 
 -- users, identity role: global lookup, provisioning, identity-provider sync
 CREATE POLICY identity ON users FOR ALL TO app_identity USING (true) WITH CHECK (true);
@@ -124,11 +124,11 @@ GRANT SELECT (id, slug, name) ON organizations TO app_join;
 | `organizations` | Slug unique |
 | `organization_settings` | Timezone is a valid IANA name. Priority display names only; the scale is fixed. |
 | `org_memberships` | One row per user per org. Re-adding reactivates the row. A live org always has one active owner. |
-| `org_template_statuses` | At least one open status. Copied into each new project. |
+| `org_template_statuses` | Exactly one default status, which must be open (`is_default`); it becomes each new project's default. Copied into each new project. The standard template is Backlog, Todo (default), In Progress, In Review, Done (completed), Canceled (canceled). |
 | `projects` | Key `^[A-Z][A-Z0-9]{1,9}$`, unique per org, never updated. Holds the task-number counter and the rank epoch. Default status is its own, open, and live. |
 | `project_statuses` | Copied from the template with provenance. Live names unique per project, case-insensitive. At most 30 live. Archiving requires a replacement. |
-| `tasks` | Number unique per project, never reused. Rank unique per project, base-62, at most 128 characters. Due date required. Assignee may be any active member while the task is open and visible. |
-| `labels` | Live names unique per org, case-insensitive. Archived labels stay on tasks but cannot be applied. At most 500 live per org and 20 per task. |
+| `tasks` | Number unique per project, never reused. Rank unique per project, base-62, at most 128 characters, never ending in `0`. Due date required. Assignee may be any active member while the task is open and visible. |
+| `labels` | Live names unique per org, case-insensitive. Color is one of ten tokens: slate, red, orange, amber, green, teal, blue, indigo, purple, pink. Archived labels stay on tasks but cannot be applied. At most 500 live per org and 20 per task. |
 | `task_labels` | Composite key, tenant-scoped on both sides |
 | `org_join_requests` | One pending request per user per org. `decided_at` and `decided_by` are set exactly when the status is approved or rejected. The requester reads and cancels only their own. Owners and admins decide. |
 | `comments` | The author edits. The author, an owner, or an admin deletes. Deletion removes the body. |
@@ -140,21 +140,32 @@ GRANT SELECT (id, slug, name) ON organizations TO app_join;
 | Membership status | Enum | active, deactivated |
 | Project state | Enum | active, archived |
 | Closed kind | Nullable enum | completed, canceled; null means open |
-| Priority | `smallint`, nullable | 1 urgent, 2 high, 3 medium, 4 low; null is `NONE` |
+| Priority | `smallint`, nullable | 1 urgent, 2 high, 3 medium, 4 low; null is `NONE`. Display names are `organization_settings.priority_labels`, four entries, default Urgent, High, Medium, Low. |
 | Actor kind | Enum | user, system |
 | Join request status | Enum | pending, approved, rejected, canceled |
 | Activity type | Enum, grow-only | 30 types (section 7.4) |
+
+| Field | Rule |
+|---|---|
+| Org slug | 3 to 6 characters: lowercase letters, digits, inner hyphens. Not a reserved word (admin, api, auth, app, o, signin, signup, onboarding, settings, www). |
+| Project key | Exactly 3 characters, `^[A-Z][A-Z0-9]{2}$` |
+| Names | Org and project 1 to 80, display name 1 to 80, label and status 1 to 40 |
+| Long text | Project description up to 2,000, task title 1 to 200, task description up to 20,000, comment 1 to 10,000 |
+| Timezone | A name from `pg_timezone_names`, default `UTC` |
+
+Database checks enforce every rule. `@taskloom/contracts` exports the same rules, and a parity test keeps the two in step.
 
 ## 4. Derived Data
 
 | Column | Written by | Rule |
 |---|---|---|
 | `tasks.number` | Insert trigger | Always allocated from the project counter. The default 0 exists for Prisma. Any other value on create fails with `DERIVED_COLUMN_WRITE`. |
+| `tasks.rank` on create | Insert trigger | Generated after the project counter lock: before the column's first live rank, and unused anywhere in the project. The default `''` exists for Prisma. Any other value on create fails with `DERIVED_COLUMN_WRITE`. |
 | `tasks.is_closed` | Trigger | Copied from the status, which the trigger reads `FOR SHARE`. An archived target status fails with `STATUS_ARCHIVED`. A direct write is rejected. |
 | `tasks.closed_at` | Trigger | Set on the task's own move into a closed status. Kept on its own move between closed statuses. Cleared whenever the task becomes open. A flip of a status to closed leaves it empty, so no date is invented. |
 | `project_statuses.is_closed`, `org_template_statuses.is_closed` | Trigger | Always `closed_kind IS NOT NULL` |
 | `*.updated_at` | Trigger | User-visible edits only. Rank moves and rebalances do not count. |
-| `tasks.rank` | API | Generated from neighbor ids. Clients never send ranks. |
+| `tasks.rank` on move | API (Designed) | Generated from neighbor ids. Clients never send ranks. |
 | Activity events | API | Written in the mutation transaction. `from` and `to` come from `UPDATE ... RETURNING OLD, NEW`. A save that changes nothing writes no event. |
 
 `closed_at` is a display field. Completion metrics read `task.status_changed` and `status.closed_kind_changed` events, because a status flip closes tasks without a real completion time.
@@ -238,6 +249,7 @@ API-enforced by design: the role matrix, approval roles (never owner), rate limi
 | Approve or reject | Owner or admin. Approval inserts or reactivates the membership with the chosen role (admin, member, or contributor), marks the request, and writes `member.added` with `via: join_request`. Rejection writes `member.join_request_rejected`. |
 | Add member | Owner or admin. `app.lookup_user_id_by_email` matches the exact email, 30 lookups per org per hour, then the same membership path with `via: direct`. |
 | Create project | Owner, admin, or member. `app.create_project` copies the template statuses, sets the default status, and writes `project.created`. |
+| Create task | Every role. Title, description, status (the project default unless chosen), priority, assignee, due date, and up to 20 labels. The insert trigger allocates the number and the rank. Writes `task.created`. |
 
 ### 6.2 Designed flows
 
@@ -275,9 +287,9 @@ Moves and creates never wait for each other. The bulk reopen routine locks membe
 
 **Queries (Built).** `viewer` (user, memberships, own join requests), `organization` (with `members` and `joinRequests` connections), `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks(filter, orderBy, first, after)`, `taskSummary(filter)`, `board(projectId, filter, first)`, `labels`.
 
-**Mutations (Built).** `createOrganization`, `requestToJoinOrganization`, `cancelJoinRequest`, `approveJoinRequest(id, role)`, `rejectJoinRequest`, `addMember(email, role)`, `createProject`.
+**Mutations (Built).** `createOrganization`, `requestToJoinOrganization`, `cancelJoinRequest`, `approveJoinRequest(id, role)`, `rejectJoinRequest`, `addMember(email, role)`, `createProject`, `createTask`.
 
-**Mutations (Designed).** Org settings and template; change role, deactivate, reactivate member; update, archive, restore project; create, update, reorder, archive status and set default; create, update, move, bulk move, archive, restore task and change labels; create, update, archive label; add, edit, delete comment.
+**Mutations (Designed).** Org settings and template; change role, deactivate, reactivate member; update, archive, restore project; create, update, reorder, archive status and set default; update, move, bulk move, archive, restore task and change labels; create, update, archive label; add, edit, delete comment.
 
 **Filter.** Fields combine with AND; lists combine with OR, except `labelsAll`. Fields: projects, statuses, assignees plus `includeUnassigned`, priorities (including `NONE`), inclusive due-date range, `labelsAny`, `labelsAll`, `isClosed`, `overdueOnly`, `includeArchived`. `taskSummary` accepts the same filter.
 

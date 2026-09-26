@@ -38,7 +38,7 @@ See `api-architecture.md`. Repositories use the request transaction from CLS, ne
 
 ### Schema & Models
 
-- **Schema Location:** `prisma/schema.prisma`
+- **Schema Location:** `api/prisma/schema/*.prisma`, one file per domain (500-line rule). Partial indexes use the `partialIndexes` preview feature.
 - Use UUIDs for all primary keys unless otherwise specified.
 - Use `BigInt` or `Decimal` for financial amounts (never Float).
 - Enforce constraints (unique, default values) at the schema level.
@@ -51,6 +51,10 @@ See `api-architecture.md`. Repositories use the request transaction from CLS, ne
 - Forward-only. Prisma has no down migrations. Every migration names its remediation path instead of a rollback script.
 - Expand, migrate, contract for breaking changes. `lock_timeout = '3s'`; indexes on large tables `CONCURRENTLY` in their own migration.
 - Never edit an applied migration. Never run `prisma db push` against a shared database.
+- `prisma migrate dev --create-only` applies every pending migration before it creates the next one. Write each hand-written migration completely before creating another, or it is recorded as applied while empty.
+- Use `npm run migrate:dev -w @taskloom/api` (fresh shadow database) instead of calling `prisma migrate dev` directly, and `npm run db:reset` to rebuild the local databases. Prisma's own reset and shadow cleanup drop only `public`, and the chain also owns `app` and `history_parts`.
+- Functions in schema `app` use `CREATE OR REPLACE` so shadow replays stay clean. Errors use SQLSTATE `P0001` with the GraphQL error code as the message.
+- Database invariant tests live in `api/test/db/` and run on Testcontainers as `app_runtime` with `SET LOCAL ROLE`.
 - Every new tenant table ships in the same migration with forced RLS, the tenant policy, and grants.
 - Backfills run per org, in their own transaction, with tenant context set.
 
