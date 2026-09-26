@@ -5,7 +5,7 @@
 model ActivityEvent {
   orgId         String       @map("org_id") @db.Uuid
   id            String       @default(dbgenerated("uuidv7()")) @db.Uuid
-  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt     DateTime     @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   projectId     String?      @map("project_id") @db.Uuid
   taskId        String?      @map("task_id") @db.Uuid
   type          ActivityType

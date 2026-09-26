@@ -5,8 +5,8 @@ model Organization {
   id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   slug      String   @unique @db.Citext
   name      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(dbgenerated("transaction_timestamp()")) @map("updated_at") @db.Timestamptz(6)
 
   settings         OrganizationSettings?
   memberships      OrgMembership[]
@@ -23,7 +23,7 @@ model OrganizationSettings {
   orgId          String   @id @map("org_id") @db.Uuid
   timezone       String   @default("UTC")
   priorityLabels String[] @default(["Urgent", "High", "Medium", "Low"]) @map("priority_labels")
-  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(dbgenerated("transaction_timestamp()")) @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -35,8 +35,8 @@ model OrgMembership {
   userId        String           @map("user_id") @db.Uuid
   role          OrgRole
   status        MembershipStatus @default(active)
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  createdAt     DateTime         @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @default(dbgenerated("transaction_timestamp()")) @map("updated_at") @db.Timestamptz(6)
   deactivatedAt DateTime?        @map("deactivated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -60,7 +60,7 @@ model OrgJoinRequest {
   id        String            @default(dbgenerated("uuidv7()")) @db.Uuid
   userId    String            @map("user_id") @db.Uuid
   status    JoinRequestStatus @default(pending)
-  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime          @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   decidedAt DateTime?         @map("decided_at") @db.Timestamptz(6)
   decidedBy String?           @map("decided_by") @db.Uuid
 
