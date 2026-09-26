@@ -1,0 +1,319 @@
+# Implementation Plan
+
+| Field    | Value                                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------- |
+| Status   | For review. No feature code is written until this plan is approved.                                              |
+| Date     | 26 September 2026                                                                                                |
+| Baseline | `chore/scaffold` (monorepo, agent rules, CI) on top of the design documents                                      |
+| Sources  | [README](../README.md), [1.2](1.2-data-model.md), [design reference](design-reference.md) v1.4, [2.1](2.1-api-design.md), [2.2](2.2-ui-architecture.md), [3.1](3.1-rfc-board-performance.md) |
+
+This plan turns the design documents into code. Each phase is one branch and one pull request. A phase is done only when its exit criteria hold with evidence, and it updates any document its code contradicts.
+
+## 1. Scope
+
+### 1.1 What gets built
+
+| Area | Built in v1 |
+| --- | --- |
+| Database | Every v1 table, four API roles plus the runtime login role and the join-request role, forced row-level security, triggers, monthly history partitions, and the Built-tier invariant tests |
+| Request lifecycle | JWT verification, one transaction per GraphQL operation, `SET LOCAL ROLE`, tenant context, membership read once, pure `authorize`, cost and depth limits, DataLoaders |
+| Accounts | Email and password sign up and sign in, a 15-minute access token, a rotating refresh token in an `HttpOnly` cookie, sign out |
+| Organizations | Create an organization (the creator becomes owner), request to join by slug, owner or admin approval or rejection, add an existing user by exact email, create a project from the dashboard |
+| Read API (Task 2.1) | `viewer`, `organization`, `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks`, `taskSummary`, `board`, `labels` |
+| Web | Design system, sign in and sign up, onboarding, org switcher, dashboard with projects, members and join requests, and the Task Board (Task 2.2) |
+| Seed | Demo organizations, users for every role, a pending join request, and one project with 2,500 tasks |
+
+### 1.2 What stays designed or later
+
+Task, status, label, and comment mutations, rank generation and rebalance, bulk reopen, member deactivation, and partition maintenance stay **Designed**. Re-key, org deletion, auto-archive, the outbox, invitations for non-users, email verification, and password reset stay **Later**. The design reference specifies each.
+
+## 2. Decisions Carried Into the Build
+
+These were settled in the scaffolding session. The design documents now reflect them.
+
+| # | Decision | Why |
+| --- | --- | --- |
+| B1 | Modular monolith: one NestJS API with hard module boundaries | Composite tenant keys, one read snapshot per request, and row-level security all need one database and one transaction. Microservices would split them. |
+| B2 | One Prisma client and one pool. The API logs in as `app_runtime`, which holds no privileges of its own, and runs `SET LOCAL ROLE app_user` or `app_identity` inside each transaction | Four clients would mean four pools. A query outside a request transaction fails loudly (critique X7). |
+| B3 | Cross-tenant reads run through `SECURITY DEFINER` functions owned by `NOLOGIN` roles (`app_membership_reader`, `app_join`, `app_identity`) | The request never switches roles mid-transaction, and each crossing has one narrow entry point |
+| B4 | One transaction per GraphQL operation, with no external I/O inside it, explicit `timeout` and `maxWait`, and connection hold time logged per request | Row-level security context and the list-summary snapshot need it. The three rules keep PgBouncer connections short (critique S2). |
+| B5 | Monthly `activity_events` partitions live in schema `history_parts`. `app.ensure_activity_partitions(months_ahead)` creates 12 months ahead plus a DEFAULT partition | Prisma models only `public`, so the drift check (T13) stays clean. Partitioning stays cheap for the MVP. |
+| B6 | New index `tasks_org_created (org_id, id)` on live tasks | The default newest-first order across projects had no index |
+| B7 | Accounts: argon2id password hashes, readable only by `app_identity`. The access JWT (`sub` = user id) lives in memory. The refresh token rotates, is stored hashed, and is revoked with its whole family on reuse | Agreed security rules: no tokens in browser storage |
+| B8 | Join by request: the user enters an org slug, and an owner or admin approves or rejects the request. Owners and admins can also add an existing user by exact email | Agreed onboarding flow. Browsing orgs is not offered, because it would list tenants. |
+| B9 | NestJS 12 is ESM-only, so the API is ESM and API tests run on Vitest with SWC | Jest's ESM support is experimental. Web and API now share one test runner. |
+| B10 | `graphql` pinned to 16 | Apollo Server 5 requires `^16.11`, and a second copy breaks schema identity |
+| B11 | MUI X Charts replaces Recharts for the priority chart | One component system |
+| B12 | Stack: Node 24, TypeScript 6.0, NestJS 12, Apollo Server 5, Prisma 7.10, PostgreSQL 18, PgBouncer, React 19, Vite, MUI 9, Apollo Client 4, React Router, React Hook Form, Vitest, Testcontainers, Storybook, Playwright | TypeScript 7 is not yet supported by typescript-eslint. Prisma's `latest` npm tag is an 8.0 release candidate. |
+
+## 3. Cross-Cutting Design for the New Scope
+
+### 3.1 Database roles
+
+| Role | Login | Privileges | Used for |
+| --- | --- | --- | --- |
+| `postgres` | Yes | Superuser | Local bootstrap only. Never used by the app. |
+| `app_owner` | Yes | Owns every object, `CREATEROLE`, not a superuser, forced row-level security | Migrations |
+| `app_runtime` | Yes | None of its own. Granted `app_user` and `app_identity` `WITH INHERIT FALSE, SET TRUE` | Every API connection, through PgBouncer |
+| `app_user` | No | Tenant tables under the tenant policy | GraphQL operations |
+| `app_identity` | No | `users` and `refresh_tokens` only | `/auth/*` routes. Owns `app.lookup_user_id_by_email`. |
+| `app_membership_reader` | No | The caller's own memberships and those orgs | Owns `app.viewer_memberships()` |
+| `app_join` | No | Resolves an org slug, and reads and writes the caller's own join requests | Owns `app.submit_join_request`, `app.cancel_join_request`, `app.viewer_join_requests` |
+
+Migrations create the `NOLOGIN` roles and `app_runtime` as `NOLOGIN`. The local init script and Testcontainers setup then run `ALTER ROLE app_runtime LOGIN PASSWORD ...`, so no secret lives in a migration. PgBouncer authenticates `app_runtime`, and migrations connect straight to PostgreSQL as `app_owner`.
+
+**Fix to the scaffold:** `POSTGRES_USER` is currently `app_owner`, which the Docker image makes a superuser. A superuser bypasses row-level security, even when it is forced. Phase 1 moves the superuser to `postgres` and creates `app_owner` without superuser rights in an init script.
+
+### 3.2 New and changed tables
+
+| Table | Change |
+| --- | --- |
+| `users` | Adds `password_hash`. `auth_subject` becomes nullable and is reserved for a future identity provider. A check requires one of the two. |
+| `refresh_tokens` | New global table: `id`, `user_id`, `family_id`, `token_hash` (unique), `expires_at`, `revoked_at`, `replaced_by_id`, `created_at`. Forced row-level security. Only `app_identity` has access. |
+| `org_join_requests` | New tenant table: `(org_id, id)` primary key, `user_id`, `status` (`pending`, `approved`, `rejected`, `canceled`), `created_at`, `decided_at`, `decided_by`. One pending request per user per org. The decision columns are set exactly when the status is `approved` or `rejected`. |
+| `activity_events` | `member.added` gains `via` (`direct` or `join_request`). New type `member.join_request_rejected`. |
+
+### 3.3 Request lifecycle
+
+1. Passport verifies the JWT. `sub` is the user id. A missing or invalid token returns `UNAUTHENTICATED`.
+2. An Apollo server plugin opens one Prisma interactive transaction when the operation resolves, stores it in the request scope (`nestjs-cls`), and commits or rolls back when the response is sent. Queries run `REPEATABLE READ READ ONLY`. Mutations run `READ COMMITTED`.
+3. The first statements are `SET LOCAL ROLE app_user` and `set_config` for the user id and the org id from the `X-Org-Id` header.
+4. **Org-scoped operations** read the caller's own membership once. With no active membership the response is `NOT_FOUND`. The role is stored for `authorize`.
+5. **Org-less operations** send no header. They are `viewer`, `createOrganization`, `requestToJoinOrganization`, and `cancelJoinRequest`. An operation that mixes org-less mutations with org-scoped fields fails with `VALIDATION_FAILED`.
+
+### 3.4 GraphQL additions
+
+```graphql
+type Viewer {
+  user: User!
+  memberships: [Membership!]!
+  joinRequests: [ViewerJoinRequest!]!
+}
+
+type Mutation {
+  createOrganization(input: CreateOrganizationInput!): Organization! # org-less
+  requestToJoinOrganization(slug: String!): ViewerJoinRequest! # org-less
+  cancelJoinRequest(id: ID!): ViewerJoinRequest! # org-less, own request
+  approveJoinRequest(id: ID!, role: Role = MEMBER): Membership! # owner, admin
+  rejectJoinRequest(id: ID!): JoinRequest! # owner, admin
+  addMember(email: String!, role: Role = MEMBER): Membership! # owner, admin
+  createProject(input: CreateProjectInput!): Project! # owner, admin, member
+}
+```
+
+Approval and direct add can grant `admin`, `member`, or `contributor`, never `owner`. New error codes: `EMAIL_TAKEN`, `INVALID_CREDENTIALS`, `ORG_SLUG_TAKEN`, `ALREADY_MEMBER`, `JOIN_REQUEST_PENDING`, `JOIN_REQUEST_NOT_PENDING`, `RATE_LIMITED`.
+
+### 3.5 Auth routes
+
+| Route | Behavior |
+| --- | --- |
+| `POST /auth/signup` | Email, password, display name. Returns the access token and user, and sets the refresh cookie. `EMAIL_TAKEN` on a duplicate. |
+| `POST /auth/signin` | Unknown email and wrong password take the same time and return the same `INVALID_CREDENTIALS` |
+| `POST /auth/refresh` | Rotates the refresh token. Reuse of a revoked token revokes the whole family. |
+| `POST /auth/signout` | Revokes the family and clears the cookie |
+
+The cookie is `HttpOnly`, `SameSite=Strict`, `Path=/auth`, and `Secure` outside development. Auth routes have strict throttling.
+
+### 3.6 Web routes
+
+| URL | Screen | Access |
+| --- | --- | --- |
+| `/signin`, `/signup` | Account forms | Public |
+| `/onboarding` | Create an organization, or request to join by slug, with pending requests listed | Signed in |
+| `/o/:orgSlug` | Dashboard: projects, and create project for member and above | Member of the org |
+| `/o/:orgSlug/p/:projectKey` | Task Board | Member of the org |
+| `/o/:orgSlug/members` | Members, add by email, and join requests for owners and admins | Member of the org |
+
+After sign in, the app loads `viewer.memberships`. With no membership it opens onboarding. Otherwise it opens the last organization, or the first one. The org slug in the URL maps to the org id sent in `X-Org-Id`.
+
+## 4. Phases
+
+Each phase lists its deliverables, the tests that prove it, and its exit criteria. Test ids match design reference section 5.2. The relative sizes are S, M, and L.
+
+### Phase 1: Database foundation (L)
+
+Branch `feat/db-schema`.
+
+- Docker: the superuser fix from section 3.1, an init script for `app_owner` and the `app_runtime` login, and PgBouncer authenticating `app_runtime`.
+- `schema.prisma`: every v1 table and enum from 1.2 section 2.2 plus section 3.2 above. Composite `org_id` relations use explicit `onDelete: NoAction, onUpdate: NoAction` (critique F4). Partial indexes are included.
+- Hand-written migrations, in order:
+  1. Roles and grants.
+  2. Context functions `app.current_user_id()` and `app.current_org_id()`: `STABLE`, `PARALLEL SAFE`, and `NULL` without context.
+  3. Forced row-level security and the tenant policy on every tenant table. Policies on `users` and `refresh_tokens`.
+  4. Derive and guard triggers: task number allocation, `is_closed` and `closed_at` with the `FOR SHARE` status read, status `is_closed`, `updated_at`, the assignee guard, the last-owner and default-status deferred constraint triggers, the archived-label guard, and the history scope check.
+  5. `activity_events` partitioned in `history_parts`, plus `app.ensure_activity_partitions`.
+  6. Expression indexes, such as priority `coalesce`, and the new `tasks_org_created`.
+  7. Procedures `app.create_organization` and `app.create_project`, the definer functions from section 3.1, and the join-request policies.
+- Test harness: one PostgreSQL 18 Testcontainer per test run, the migration chain applied once, and a helper `asRole(role, { userId, orgId }, fn)` that runs each test in a rolled-back transaction.
+- **Tests:** T1, T2, T3, T4, T5 (Built part), T6, T7, T10, T13, T14, T16, T17, T18 (Built part), T19, T25, T28. New:
+  - **T29:** Join-request isolation. A requester sees only their own requests and never the org's data, and only one request can be pending per user per org.
+  - **T32:** `app_runtime` can read nothing without `SET ROLE`.
+  - **T33:** Email lookup returns one id and nothing else.
+- **Exit:**
+  - `npm run migrate` on an empty database, and the migrate job in CI passes.
+  - T13 reports no drift.
+  - All listed tests pass as `app_user`, never as a superuser.
+
+### Phase 2: Request lifecycle and API platform (M)
+
+Branch `feat/request-lifecycle`.
+
+- `PrismaModule`: a single client on `@prisma/adapter-pg` through PgBouncer.
+- `DbContext` in the request scope, the transaction plugin from section 3.3, and a startup check that the runtime role has no direct grants.
+- A capability enum in `@taskloom/contracts`, and `authorize(role, capability)` as a pure function over the 1.2 section 2.3 matrix.
+- Domain errors mapped to `extensions.code`, and unknown errors masked.
+- Cost and depth limits (`graphql-query-complexity`, `graphql-depth-limit`) and the `first <= 100` check.
+- `nestjs-pino` with a correlation id and redacted secrets, plus `@nestjs/throttler`.
+- A DataLoader registry per request.
+- **Early spike:** prove the plugin-held transaction against PgBouncer with `SET LOCAL`, the timeouts, and rollback on error before building on it. Report back if it fails.
+- **Tests:**
+  - T22: the list and the summary see one snapshot.
+  - T23: limits and `QUERY_TOO_COMPLEX`.
+  - Lifecycle cases: no token, a foreign org, an inactive membership, a transaction timeout, and a mixed operation.
+  - A table-driven test of the role matrix.
+- **Exit:** every resolver reaches the database only through the request transaction. The lint rule and a test prove it.
+
+### Phase 3: Accounts and authentication (M)
+
+Branch `feat/auth`.
+
+- An `identity` module with the four routes from section 3.5, argon2id hashing, refresh rotation with reuse detection, the Passport JWT strategy for GraphQL, and cookie handling.
+- `@taskloom/contracts` exports the shared account rules: email length, password policy, and display name length.
+- **Tests:**
+  - **T31:** Refresh rotation, and family revocation when a token is reused.
+  - Sign up with a duplicate email.
+  - Equal-timing failure paths.
+  - The throttling limit.
+  - A missing or expired access token.
+- **Exit:** a curl script can sign up, sign in, refresh, sign out, and call `viewer`. Tokens never appear in logs.
+
+### Phase 4: Organizations, members, join requests, projects (M)
+
+Branch `feat/org-membership`.
+
+- The mutations and `viewer` fields from section 3.4.
+- `organization.members` and `organization.joinRequests` as connections.
+- Approval inserts or reactivates exactly one membership and writes `member.added` with `via: join_request`. Rejection writes `member.join_request_rejected`.
+- Member lookup is limited to 30 per org per hour, and join requests to 10 per user per hour.
+- `createProject` copies the org status template through `app.create_project` and writes `project.created`.
+- **Tests:**
+  - **T30:** Approval and rejection outcomes and their events.
+  - The T23 remainder: `organization.projects` pages.
+  - Every role transition, including admins never granting owner.
+  - The uniform response from the email lookup.
+- **Exit:** two users can go from sign up to shared membership through the API alone.
+
+### Phase 5: Seed data (S)
+
+Branch `chore/seed`.
+
+- **Organization Acme:** projects ENG (2,500 tasks) and OPS (40 tasks).
+- **Organization Globex:** one project of 60 tasks.
+- **Accounts:** an owner, admin, member, and contributor in Acme, one user in both organizations, one user with no organization, and one user with a pending request to Globex.
+- **Task data:** statuses, labels, priorities, assignees including departed members, and due dates spread around today so overdue counts are meaningful.
+- The seed runs per org through the creation procedures with tenant context set. It is idempotent: it resets and reseeds.
+- Demo passwords live in `api/seed/` as test values and are listed in the README.
+- **Exit:** `npm run seed` on a fresh database, and every demo account can sign in.
+
+### Phase 6: Read API for Task 2.1 (L)
+
+Branch `feat/read-api`.
+
+- The full Task 1.1 types and the queries listed in section 1.1.
+- One `TaskFilter` builder shared by `tasks`, `taskSummary`, and `board`.
+- Cursor codecs, and four orders, each with its index.
+- The summary as one `GROUPING SETS` statement, zero-filled.
+- The board as one `LATERAL` statement, with per-column `rank` cursors.
+- `taskByIdentifier`, and the overdue predicate exactly as in 1.2 section 3.1, with inactive projects read once per request.
+- Loaders for users, statuses, labels by task, projects, and comment counts.
+- **Tests:**
+  - T15: due dates survive `TZ=Pacific/Kiritimati` and `TZ=America/Phoenix`.
+  - T24: `EXPLAIN` as `app_user` shows index scans and no full sort.
+  - T27: overdue ignores archived projects without reading `projects`.
+  - A statement-count test: the board uses 8 statements or fewer, whatever the project size.
+  - Filter semantics: `NONE` priority, `labelsAll`, unassigned, and the due-date range.
+- **Exit:** the 2.1 operations answer on seeded data within the RFC targets on a laptop. The numbers go in the PR as evidence, not as a claim about production.
+
+### Phase 7: Web foundation (M)
+
+Branch `feat/web-foundation`.
+
+- **Design system:** color, spacing, radius, type, z-index, and motion tokens, light and dark themes, and MUI component overrides.
+- **Wrapper components:** Button, TextField, Dialog, Card, PageHeader, EmptyState, ErrorState, skeletons, UserChip, PriorityChip, StatusChip, and DateBadge. Each has Storybook stories that pass the a11y addon.
+- **App shell:**
+  - React Router routes and guards from section 3.6.
+  - The auth module: in-memory token, refresh on load, and a single retry on 401.
+  - Apollo links for the auth header, the org header, and error mapping.
+  - The org switcher, and an error boundary per route.
+- Sign in and sign up screens built with React Hook Form and Zod, using the rules from `@taskloom/contracts`.
+- **Tests:** component tests for the forms and guards. Playwright: sign up, sign out, sign in.
+- **Exit:** every token and component reviewed in Storybook, in both themes.
+
+### Phase 8: Onboarding, dashboard, members (M)
+
+Branch `feat/web-org`.
+
+- The onboarding screen, with creation and join requests.
+- The dashboard, with a project list and a create-project dialog.
+- The members screen, with add by email and approve or reject.
+- Loading, error, and empty states on every screen.
+- **Tests:** Playwright covers two flows:
+  - Sign up, create an org, create a project.
+  - A second user requests to join, the owner approves, and the second user sees the org.
+- **Exit:** both flows pass in CI.
+
+### Phase 9: Task Board for Task 2.2 (L)
+
+Branch `feat/task-board`.
+
+- The 2.2 tree: `TaskBoardPage`, `FilterBar`, `SummaryPanel` (`StatCards`, `PriorityChart`), `Board`, `Column`, `TaskCard`.
+- `useTaskFilters` keeps filters in the URL. `useTaskBoard(filters)` runs the board and summary queries with the same variables.
+- Each column calls `fetchMore` with its own cursor, through an Apollo field policy.
+- Long columns are virtualized (open question Q4).
+- Loading skeletons, per-query error and retry, and both empty cases.
+- **Tests:**
+  - Component tests with a mocked Apollo provider.
+  - Stories for every state.
+  - Playwright: a filter updates the board and the summary together, and the URL restores the view.
+- **Exit:** the ENG board with 2,500 tasks loads with one page per column, and the measured time goes in the PR.
+
+### Phase 10: Hardening and documentation (M)
+
+Branch `docs/final-sync`.
+
+- A full CI run from a clean clone, with the README steps followed exactly.
+- `/security-review` and `/code-review` passes, with findings fixed or recorded.
+- Documentation:
+  - Compress 1.2.
+  - Split the design reference into `design-reference-data.md` and `design-reference-api.md`.
+  - Recheck the word limits of 2.1 and 2.2.
+  - Update the AI transcript commentary.
+- **Exit:** every README link resolves, and the Built tier matches the code.
+
+## 5. Working Rules
+
+- Branch from `main` after the previous phase merges. Use Conventional Commits. Pull requests follow the personal template.
+- The gates in `.claude/rules/pre-commit.md` pass before every commit. No file exceeds 500 lines.
+- A phase that must deviate from a document stops and asks first, then updates the document in the same pull request.
+- Every pull request states what was run and what was checked by hand.
+
+## 6. Risks
+
+| Risk | Response |
+| --- | --- |
+| Holding a Prisma interactive transaction from Apollo plugin hooks is unusual | Spike first in Phase 2. The fallback is a Nest GraphQL execution wrapper that runs the operation inside `$transaction`. |
+| Prisma behind PgBouncer in transaction mode with prepared statements | `max_prepared_statements` is set, and Phase 2 tests run through PgBouncer, not directly |
+| T13 drift noise from hand-written SQL | Measured in Phase 1. Expression indexes may need `@@index` omissions documented in the schema. |
+| Throttle counters are in memory | Correct for one instance. A shared store is Later, noted in the README. |
+| Slug-based join requests confirm that an org slug exists | Accepted and rate-limited, like the member-lookup oracle in design reference section 2 |
+
+## 7. Open Questions for Review
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| Q1 | Task creation is Designed, so a newly created organization shows an empty board. Build a minimal `createTask` anyway? | Keep it Designed. Reviewers use the seeded demo accounts, and the empty board says task creation is designed but not built. Building it adds rank generation, which is about an S-size phase. |
+| Q2 | Show the organization's name to a requester on their pending request? | Yes. Names are low sensitivity, and requests are rate-limited. |
+| Q3 | Does the approver pick the role at approval? | Yes. The default is member, and owner can never be granted this way. |
+| Q4 | Add `@tanstack/react-virtual` for long columns? | Yes. The RFC calls for virtualization, and the package is small. |
+| Q5 | Throttle organization creation? | Yes, at 5 per user per day |
+| Q6 | Keep this plan in the submission? | Yes, linked from the AI transcript commentary as evidence of the process |
