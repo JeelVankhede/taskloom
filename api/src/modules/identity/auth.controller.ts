@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, Post, Req, Res, UseFilters, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { AuthSessionBody } from '@taskloom/contracts';
 import type { Request, Response } from 'express';
 import type { Env } from '../../config/env.js';
 import { OriginGuard } from '../../platform/http/origin.guard.js';
@@ -10,7 +11,7 @@ import { SignInDto, SignUpDto } from './dto/auth.dto.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './refresh-cookie.js';
 
 /** The session body. The refresh token only ever travels in the HttpOnly cookie. */
-const body = (session: Session) => ({
+const body = (session: Session): AuthSessionBody => ({
   accessToken: session.accessToken,
   expiresIn: session.expiresIn,
   user: session.user,
