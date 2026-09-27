@@ -9,7 +9,8 @@ export interface LabelChipProps {
 
 /** Colored text over a faint tint of the same color; the name carries the meaning. */
 export function LabelChip({ name, color }: LabelChipProps) {
-  const { light, dark } = labelColor[color];
+  // The API types color as a string; an unknown value shows as slate rather than failing.
+  const { light, dark } = labelColor[color] ?? labelColor.slate;
   return (
     <Chip
       size="small"
