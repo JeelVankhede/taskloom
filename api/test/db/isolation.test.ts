@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asRuntimeOnly, expectCode, inTx, SQLSTATE } from './support/db.js';
+import { asRuntimeOnly, expectCode, inTx, ownerPool, SQLSTATE } from './support/db.js';
 import { addMember, createOrg, createUser, emailOf, insertTask } from './support/fixtures.js';
 
 const TENANT_TABLES = [
@@ -256,5 +256,50 @@ describe('T33: member lookup returns an id and nothing else', () => {
       expect(partial).toEqual({ id: null });
       expect(unknown).toEqual({ id: null });
     });
+  });
+});
+
+/**
+ * Catalog guard (1.2 section 5.3): finds every table itself, so a new tenant table cannot be
+ * forgotten the way a hand-kept list could be.
+ */
+describe('T4: every tenant table has forced row-level security and only the tenant policy for app_user', () => {
+  it('holds for every public table with an org_id column, and for the global tables', async () => {
+    // Act
+    const { rows } = await ownerPool.query<{
+      table: string;
+      enabled: boolean;
+      forced: boolean;
+      appUserPolicies: string[];
+    }>(`
+      SELECT c.relname AS table, c.relrowsecurity AS enabled, c.relforcerowsecurity AS forced,
+             ARRAY(SELECT p.polname::text FROM pg_policy p
+                   WHERE p.polrelid = c.oid AND 'app_user'::regrole = ANY (p.polroles)
+                   ORDER BY 1) AS "appUserPolicies"
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+        AND (c.relname IN ('users', 'refresh_tokens', 'organizations')
+             OR EXISTS (SELECT 1 FROM pg_attribute a
+                        WHERE a.attrelid = c.oid AND a.attname = 'org_id' AND NOT a.attisdropped))
+      ORDER BY 1`);
+
+    // Assert
+    const orgTables = rows.filter(
+      (r) => !['users', 'refresh_tokens', 'organizations'].includes(r.table),
+    );
+    expect(orgTables.length).toBeGreaterThanOrEqual(11);
+    for (const row of rows) {
+      expect({ table: row.table, enabled: row.enabled, forced: row.forced }).toEqual({
+        table: row.table,
+        enabled: true,
+        forced: true,
+      });
+    }
+    for (const row of orgTables) {
+      expect({ table: row.table, policies: row.appUserPolicies }).toEqual({
+        table: row.table,
+        policies: ['tenant'],
+      });
+    }
   });
 });
