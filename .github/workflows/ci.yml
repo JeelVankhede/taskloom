@@ -55,3 +55,9 @@ jobs:
       - run: npm run seed
       - run: npm run build -w @taskloom/api
       - run: npm run e2e:stack
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: web/test-results/
+          retention-days: 7

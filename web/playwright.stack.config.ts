@@ -19,6 +19,8 @@ export default defineConfig({
       cwd: '..',
       port: 4000,
       reuseExistingServer: !process.env.CI,
+      // API logs (including slow-transaction warnings) appear in the test output.
+      stdout: 'pipe',
       timeout: 60_000,
     },
     {
