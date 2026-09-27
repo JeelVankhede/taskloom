@@ -1,0 +1,17 @@
+# The signed-in user and their organizations: the switcher, the landing redirect, and the org
+# route's membership check all read this one cached query.
+query Viewer {
+  viewer {
+    id
+    email
+    displayName
+    memberships {
+      role
+      organization {
+        id
+        slug
+        name
+      }
+    }
+  }
+}

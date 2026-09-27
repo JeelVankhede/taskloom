@@ -20,7 +20,12 @@ const config: CodegenConfig = {
     'web/src/generated/': {
       preset: 'client',
       documents: ['web/src/**/*.graphql'],
-      config: { useTypeImports: true, enumsAsTypes: true, scalars: { Date: 'string' } },
+      config: {
+        useTypeImports: true,
+        enumsAsTypes: true,
+        // DateTime arrives as an ISO string in JSON; web never receives Date objects.
+        scalars: { Date: 'string', DateTime: 'string' },
+      },
     },
   },
 };
