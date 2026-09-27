@@ -56,6 +56,7 @@ export default tseslint.config(
       'codegen.ts',
       'web/e2e/**',
       'web/e2e-stack/**',
+      'web/scripts/**',
       'api/seed/**',
     ],
     languageOptions: { globals: globals.node },
