@@ -63,9 +63,12 @@ npm run db:up      # PostgreSQL 18 and PgBouncer in Docker
 npm run migrate    # applies the Prisma migration chain
 npm run seed       # demo organizations, accounts, and tasks
 npm test           # built-tier tests (integration tests start PostgreSQL through Testcontainers)
-npm run e2e        # Playwright end-to-end tests
+npm run e2e        # Playwright: the web app against a mocked API
 npm run dev        # API on :4000, web app on :5173
+npm run e2e:stack  # Playwright smoke test on the real stack (needs db:up and migrate)
 ```
+
+The web app talks only to its own origin: the Vite dev server proxies `/auth` and `/graphql` to the API on `API_PORT`. `npm run e2e:stack` signs up a new `e2e-…@example.test` account on each run.
 
 `npm run db:reset` re-creates the local databases and reapplies the migrations. It is for local Docker development only.
 
@@ -113,7 +116,8 @@ After `npm run seed`, every account below uses the password `taskloom-demo-2026`
     ├── src/design-system/    MUI theme, tokens, wrapper components
     ├── src/features/         auth, onboarding, org, members, task-board
     ├── .storybook/
-    └── e2e/                  Playwright
+    ├── e2e/                  Playwright against a mocked API
+    └── e2e-stack/            one Playwright smoke test against the real stack
 ```
 
 ## Stack
