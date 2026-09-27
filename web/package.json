@@ -12,13 +12,16 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "e2e:stack": "playwright test -c playwright.stack.config.ts"
   },
   "dependencies": {
     "@apollo/client": "^4.3.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@fontsource-variable/inter": "^5.3.0",
     "@hookform/resolvers": "^5.9.1",
+    "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
     "@mui/x-charts": "^9.14.0",
     "@taskloom/contracts": "^0.0.0",
