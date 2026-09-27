@@ -51,7 +51,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.config.{ts,mjs,js}', 'codegen.ts', 'web/e2e/**', 'api/seed/**'],
+    files: [
+      '**/*.config.{ts,mjs,js}',
+      'codegen.ts',
+      'web/e2e/**',
+      'web/e2e-stack/**',
+      'api/seed/**',
+    ],
     languageOptions: { globals: globals.node },
   },
 );
