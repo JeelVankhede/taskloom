@@ -130,6 +130,8 @@ type Organization {
   id: ID!
   slug: String!
   name: String!
+  "IANA timezone. Today, and so overdue, is decided in this timezone."
+  timezone: String!
   "Members in any status, by display name."
   members(first: Int, after: String): MemberConnection!
   "Owner or admin only. Oldest first."

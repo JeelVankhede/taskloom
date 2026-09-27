@@ -47,6 +47,28 @@ describe('createOrganization', () => {
     expect(org.body.data).toEqual({ organization: { id: created.id, name: 'Acme Inc' } });
   });
 
+  it('exposes the timezone it was created with, and UTC by default', async () => {
+    // Arrange
+    const user = await createUser('tz');
+    const zoned = await api.gql(CREATE_ORG, {
+      token: api.token(user),
+      variables: { input: { name: 'Zoned', slug: newSlug(), timezone: 'Asia/Kolkata' } },
+    });
+    const plain = await createOrgAs(user);
+    const read = (orgId: string) =>
+      api.gql('{ organization { timezone } }', { token: api.token(user), orgId });
+
+    // Act
+    const [a, b] = await Promise.all([
+      read((zoned.body.data?.createOrganization as { id: string }).id),
+      read(plain.id),
+    ]);
+
+    // Assert
+    expect(a.body.data).toEqual({ organization: { timezone: 'Asia/Kolkata' } });
+    expect(b.body.data).toEqual({ organization: { timezone: 'UTC' } });
+  });
+
   it.each([
     ['a taken slug', 'taken', 'ORG_SLUG_TAKEN'],
     ['a slug that is too long', 'abcdefg', 'VALIDATION_FAILED'],
