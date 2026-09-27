@@ -1,4 +1,10 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect as baseExpect, type Page, test } from '@playwright/test';
+
+/**
+ * This test runs with the CPU slowed 6 times (below), on top of CI's own speed, so every
+ * assertion gets a timeout to match. The slowdown is what exposed the filter livelock.
+ */
+const expect = baseExpect.configure({ timeout: 20_000 });
 
 /**
  * The Task Board on the seeded data (npm run seed: Acme's ENG project, 2,500 tasks). Read-only,
@@ -39,7 +45,7 @@ test('a filter updates the board and the summary together, and the URL restores 
 }) => {
   // A slow device (CPU slowed 6 times). This is how CI exposed filter updates, rendered in a
   // transition, making the board query alternate between old and new filters without settling.
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
   const boardRequests: string[] = [];
