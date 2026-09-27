@@ -3,7 +3,7 @@ import { OnboardingPage } from '../features/onboarding/OnboardingPage';
 import { SignInPage } from '../features/auth/pages/SignInPage';
 import { SignUpPage } from '../features/auth/pages/SignUpPage';
 import { DashboardPage } from '../features/org/DashboardPage';
-import { MembersPage } from '../features/org/MembersPage';
+import { MembersPage } from '../features/members/MembersPage';
 import { OrgLayout } from '../features/org/OrgLayout';
 import { PublicOnly, RequireAuth } from './guards';
 import { NotFound } from './NotFound';
