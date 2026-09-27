@@ -1,0 +1,49 @@
+fragment ViewerJoinRequestFields on ViewerJoinRequest {
+  id
+  status
+  createdAt
+  decidedAt
+  organization {
+    id
+    slug
+    name
+  }
+}
+
+# Also reads memberships, so an approval made by someone else reaches the org switcher.
+query ViewerJoinRequests {
+  viewer {
+    id
+    memberships {
+      role
+      organization {
+        id
+        slug
+        name
+      }
+    }
+    joinRequests {
+      ...ViewerJoinRequestFields
+    }
+  }
+}
+
+mutation CreateOrganization($input: CreateOrganizationInput!) {
+  createOrganization(input: $input) {
+    id
+    slug
+    name
+  }
+}
+
+mutation RequestToJoinOrganization($slug: String!) {
+  requestToJoinOrganization(slug: $slug) {
+    ...ViewerJoinRequestFields
+  }
+}
+
+mutation CancelJoinRequest($id: ID!) {
+  cancelJoinRequest(id: $id) {
+    ...ViewerJoinRequestFields
+  }
+}

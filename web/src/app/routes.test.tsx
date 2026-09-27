@@ -1,11 +1,20 @@
 import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetSessionForTests, session } from '../features/auth/session';
-import { org, sessionBody, viewerMock } from '../test/fixtures';
+import { ViewerJoinRequestsDocument } from '../generated/graphql';
+import { org, projectsMock, sessionBody, user, viewerMock } from '../test/fixtures';
 import { renderApp } from '../test/render';
 
 const acme = org('acme', 'Acme');
 const globex = org('globex', 'Globex');
+const noJoinRequests = {
+  request: { query: ViewerJoinRequestsDocument },
+  result: {
+    data: {
+      viewer: { __typename: 'Viewer' as const, id: user.id, memberships: [], joinRequests: [] },
+    },
+  },
+};
 
 beforeEach(() => {
   resetSessionForTests();
@@ -44,7 +53,7 @@ describe('landing', () => {
   beforeEach(() => session.start(sessionBody()));
 
   it('opens onboarding when the user has no organization', async () => {
-    const router = renderApp('/', [viewerMock([])]);
+    const router = renderApp('/', [viewerMock([]), noJoinRequests]);
     await waitFor(() => expect(router.state.location.pathname).toBe('/onboarding'));
     // Navigations render in a transition: the URL can change before the page is on screen.
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
@@ -69,7 +78,7 @@ describe('organization routes', () => {
   beforeEach(() => session.start(sessionBody()));
 
   it('shows the organization and remembers it', async () => {
-    renderApp('/o/globex', [viewerMock([acme, globex])]);
+    renderApp('/o/globex', [viewerMock([acme, globex]), projectsMock('org-globex', [])]);
     expect(await screen.findByRole('heading', { level: 1, name: 'Globex' })).toBeInTheDocument();
     expect(localStorage.getItem('tl-last-org')).toBe('globex');
   });

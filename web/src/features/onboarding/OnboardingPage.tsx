@@ -1,7 +1,11 @@
-import { EmptyState, PageHeader } from '../../design-system';
+import Stack from '@mui/material/Stack';
+import { Card, PageHeader } from '../../design-system';
 import { useSession } from '../auth/hooks/useSession';
+import { CreateOrgForm } from './components/CreateOrgForm';
+import { JoinOrgForm } from './components/JoinOrgForm';
+import { MyJoinRequests } from './components/MyJoinRequests';
 
-/** Placeholder until Phase 8 (create an organization, or request to join one). */
+/** /onboarding: create an organization, or ask to join one, and follow those requests. */
 export function OnboardingPage() {
   const state = useSession();
   const name = state.status === 'signedIn' ? state.user.displayName : '';
@@ -9,12 +13,23 @@ export function OnboardingPage() {
     <>
       <PageHeader
         title={`Welcome, ${name}`}
-        description="Create an organization, or ask to join one."
+        description="Create an organization for your team, or ask to join one that exists."
       />
-      <EmptyState
-        title="You are not in an organization yet"
-        description="Creating and joining organizations arrives in the next release."
-      />
+      <Stack spacing={8}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} sx={{ alignItems: 'stretch' }}>
+          <Stack sx={{ flex: 1 }}>
+            <Card title="Create an organization">
+              <CreateOrgForm />
+            </Card>
+          </Stack>
+          <Stack sx={{ flex: 1 }}>
+            <Card title="Join an organization">
+              <JoinOrgForm />
+            </Card>
+          </Stack>
+        </Stack>
+        <MyJoinRequests />
+      </Stack>
     </>
   );
 }
