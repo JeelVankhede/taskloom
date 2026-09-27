@@ -4,7 +4,16 @@ import { FakeApi } from './support/fake-api';
 const PASSWORD = 'correct horse battery';
 let api: FakeApi;
 
+/** The built app ships a Content-Security-Policy; nothing it loads may be refused by it. */
+let cspViolations: string[] = [];
+
 test.beforeEach(async ({ context }) => {
+  cspViolations = [];
+  context.on('console', (message) => {
+    if (message.type() === 'error' && message.text().includes('Content Security Policy')) {
+      cspViolations.push(message.text());
+    }
+  });
   api = new FakeApi();
   api.addAccount({
     email: 'member@example.test',
@@ -22,6 +31,10 @@ test.beforeEach(async ({ context }) => {
  * Navigations render in a transition: the URL changes before the new page is on screen. Wait for
  * the sign-in page itself, or typing could land in the page being replaced.
  */
+test.afterEach(() => {
+  expect(cspViolations).toEqual([]);
+});
+
 async function signIn(page: Page, email: string, password = PASSWORD) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sign in');
   await page.getByLabel('Email').fill(email);
