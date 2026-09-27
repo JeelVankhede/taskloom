@@ -59,6 +59,7 @@ Requirements: Node.js 24 and Docker.
 ```bash
 npm install
 cp .env.example .env
+npm run generate   # GraphQL types, the contracts package, and the Prisma client
 npm run db:up      # PostgreSQL 18 and PgBouncer in Docker
 npm run migrate    # applies the Prisma migration chain
 npm run seed       # demo organizations, accounts, and tasks

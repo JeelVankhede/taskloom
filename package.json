@@ -15,6 +15,7 @@
     "db:down": "docker compose down",
     "codegen": "graphql-codegen --config codegen.ts",
     "build:contracts": "npm run codegen && npm run build -w @taskloom/contracts",
+    "generate": "npm run build:contracts && npm run prisma:generate -w @taskloom/api",
     "prepare": "husky",
     "migrate": "npm run migrate -w @taskloom/api",
     "seed": "npm run seed -w @taskloom/api",
