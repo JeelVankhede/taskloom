@@ -37,6 +37,18 @@ async function counts(page: Page) {
 test('a filter updates the board and the summary together, and the URL restores it', async ({
   page,
 }) => {
+  // A slow device (CPU slowed 6 times). This is how CI exposed filter updates, rendered in a
+  // transition, making the board query alternate between old and new filters without settling.
+  test.setTimeout(60_000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+  const boardRequests: string[] = [];
+  page.on('request', (request) => {
+    const body = request.url().endsWith('/graphql') ? request.postDataJSON() : null;
+    if (body?.operationName === 'TaskBoard')
+      boardRequests.push(JSON.stringify(body.variables.filter));
+  });
+
   await signIn(page);
   await page.goto('/o/acme/p/ENG');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Engineering');
@@ -50,7 +62,8 @@ test('a filter updates the board and the summary together, and the URL restores 
   expect(all.total).toBeGreaterThan(2000);
   expect(all.columns).toBe(all.total);
 
-  // Filter by priority through the UI.
+  // Filter by priority through the UI: exactly one board request, for the new filter.
+  boardRequests.length = 0;
   await page.getByRole('combobox', { name: 'Priority' }).click();
   await page.getByRole('option', { name: 'Urgent' }).click();
   await page.keyboard.press('Escape');
@@ -58,6 +71,8 @@ test('a filter updates the board and the summary together, and the URL restores 
   await expect.poll(async () => (await counts(page)).total).toBeLessThan(all.total);
   const urgent = await counts(page);
   expect(urgent.columns).toBe(urgent.total);
+  expect(boardRequests).toHaveLength(1);
+  expect(boardRequests[0]).toContain('URGENT');
   await expect(
     page.getByRole('img', {
       name: /Tasks by priority: Urgent \d+, High 0, Medium 0, Low 0, No priority 0/,
