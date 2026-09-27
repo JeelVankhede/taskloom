@@ -448,3 +448,18 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Placeholders | Onboarding, dashboard, and members are placeholders until Phase 8 |
 | E2E | `npm run e2e`: the web app against an in-memory fake of `/auth` and `/graphql` that enforces strict rotation (5 tests, including three tabs loading at once). `npm run e2e:stack`: one smoke test against the real stack. CI runs both in the `e2e` job, the stack test on the compose database. |
 | Bundle | One 918 kB chunk (287 kB gzipped), nearly all libraries (MUI, react-dom, Apollo, Zod, React Router). Route splitting brings little while every route uses MUI; the board and charts in Phase 9 load lazily, and Phase 10 sets a budget. |
+
+### Phase 8: Onboarding, dashboard, members
+
+| Topic | Decision |
+| --- | --- |
+| Onboarding | Create (name, slug, timezone) and join (by slug) side by side, then "Your requests" with status and cancel; an approved request links to its organization. Reachable at any time from the switcher. |
+| Slug | Suggested from the name (lowercase, hyphens, at most 6 characters) until the user edits the slug; the contract pattern and reserved words are checked before sending |
+| Timezone | Defaults to the browser's zone, in a searchable list. Found while building: browsers report 18 zones by legacy names PostgreSQL rejects (Chrome and Node report India as `Asia/Calcutta`); the list and the default use current names (`Asia/Kolkata`), checked against postgres:18. A server `VALIDATION_FAILED` on create shows on the timezone field. |
+| Dashboard | Project cards (key, name, description) link to `/o/:orgSlug/p/:KEY` (the board, Phase 9); 50 per page with Load more. New project for owners, admins, and members (`roleCan`); the key is upper-cased as typed; `PROJECT_KEY_TAKEN` on the key field. |
+| Members | Everyone, deactivated included; emails as the API returns them (owners and admins). Owners and admins see pending join requests above the list, approve with a role (admin, member, or contributor; never owner) or reject, and add a member by email. `JOIN_REQUEST_NOT_PENDING` explains that someone else decided. Role changes and removal stay unbuilt. |
+| Pending badge | The Members tab shows the pending count for owners and admins (first page of 50; "50+" beyond) |
+| Org cache isolation | `organization` takes no arguments (the header picks the org), so the cache stores every org under one key. Org screens remount when the org changes, and `useOrgQuery` reads the network first on mount, then the cache. A component test fails if one org's projects ever show under another (verified by switching the policy to cache-first). |
+| After mutations | Create organization refetches the viewer before opening the dashboard; project, approve, reject, and add refetch the affected lists (server order stays authoritative) |
+| Archived projects | Hidden (the API default); no toggle |
+| E2E | Both plan flows run against the real stack (`e2e-stack/org.stack.spec.ts`); the mocked suite answers the queries the auth flows render. Each stack run signs up 4 accounts; sign up is limited to 5 per hour per IP, and the limiter is in memory. |

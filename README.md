@@ -68,7 +68,7 @@ npm run dev        # API on :4000, web app on :5173
 npm run e2e:stack  # Playwright smoke test on the real stack (needs db:up and migrate)
 ```
 
-The web app talks only to its own origin: the Vite dev server proxies `/auth` and `/graphql` to the API on `API_PORT`. `npm run e2e:stack` signs up a new `e2e-…@example.test` account on each run.
+The web app talks only to its own origin: the Vite dev server proxies `/auth` and `/graphql` to the API on `API_PORT`. `npm run e2e:stack` signs up 4 new `e2e-…@example.test` accounts (and creates their organizations) on each run; sign up allows 5 per hour per IP, so restart the API to rerun sooner.
 
 `npm run db:reset` re-creates the local databases and reapplies the migrations. It is for local Docker development only.
 
