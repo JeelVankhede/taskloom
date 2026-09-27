@@ -74,19 +74,20 @@ export function Column({ column, count, projectId, filter, today, onOpen }: Colu
   const items = virtualizer.getVirtualItems();
   const lastIndex = items.at(-1)?.index ?? -1;
 
+  const { fetchMore, error: moreError } = more;
+  const endCursor = extra?.pageInfo.endCursor;
   useEffect(() => {
-    if (!hasNext || loadingMore || more.error || lastIndex < tasks.length - PREFETCH) return;
+    if (!hasNext || loadingMore || moreError || lastIndex < tasks.length - PREFETCH) return;
     if (!requested) {
       setRequested(true);
       return;
     }
-    if (!extra?.pageInfo.endCursor) return;
+    if (!endCursor) return;
     setFetchingMore(true);
-    more
-      .fetchMore({ variables: { after: extra.pageInfo.endCursor } })
+    fetchMore({ variables: { after: endCursor } })
       .catch((e: unknown) => console.error('Loading more cards failed', e))
       .finally(() => setFetchingMore(false));
-  }, [hasNext, loadingMore, lastIndex, tasks.length, requested, extra, more]);
+  }, [hasNext, loadingMore, moreError, lastIndex, tasks.length, requested, endCursor, fetchMore]);
 
   const name = column.status.name;
   const total = count ?? tasks.length;
