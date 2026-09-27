@@ -353,6 +353,7 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Org header | `X-Org-Id`, the org id. The web app maps the URL slug to the id through `viewer.memberships`. |
 | Capabilities | `MANAGE_OWNERS`, `MANAGE_ORG`, `MANAGE_PROJECTS`, `MANAGE_LABELS`, `EDIT_TASKS`, `COMMENT`, `DELETE_ANY_COMMENT`, `READ_ORG`, over the 1.2 section 2.3 matrix, exported from `@taskloom/contracts` |
 | Error mapping | `P0001` codes pass through; `23514` and `23505` become `VALIDATION_FAILED`; `23503` and `42501` become `NOT_FOUND`; anything else is `INTERNAL_SERVER_ERROR`, masked for the client and logged in full |
+| Error logging | Found later: Nest's default resolver exception filter logged every thrown error at error level with its stack, before translation, so expected failures looked like incidents and unexpected ones were logged twice. A global GraphQL filter now logs expected failures (a `DomainError` or a database-raised code) once at `debug` with code, path, and request id, and leaves unexpected errors to `formatError`, which logs them once at `error` in full. `/auth` keeps its REST filter. |
 | Cost model | Each field costs 1; a connection costs `first` (default 50) times its children. Depth 10, cost 10,000. |
 | Rate limit | 300 GraphQL operations a minute per user, in memory, counted per operation. HTTP 429 with `RATE_LIMITED`. |
 | Timeouts | Transaction timeout 5 s, maximum wait 2 s, and a warning log above 1 s of connection hold |
