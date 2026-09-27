@@ -463,3 +463,19 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | After mutations | Create organization refetches the viewer before opening the dashboard; project, approve, reject, and add refetch the affected lists (server order stays authoritative) |
 | Archived projects | Hidden (the API default); no toggle |
 | E2E | Both plan flows run against the real stack (`e2e-stack/org.stack.spec.ts`); the mocked suite answers the queries the auth flows render. Each stack run signs up 4 accounts; sign up is limited to 5 per hour per IP, and the limiter is in memory. |
+
+### Phase 9: Task Board (Task 2.2)
+
+| Topic | Decision |
+| --- | --- |
+| Route | `/o/:orgSlug/p/:projectKey`, loaded on demand (the board, charts, and date pickers stay out of the main bundle) |
+| One operation | `board` and `taskSummary` run in one GraphQL operation with one filter value: one read-only snapshot, so column counts, cards, and chart always agree. Retry reloads both. |
+| Filters | In the URL (`useTaskFilters`): assignee (and unassigned), priority, labels (any), due range, overdue only, open/closed/all. No status filter: columns are the statuses. Invalid URL values are ignored. A filter change shows cached results when there are some, and refreshes them. |
+| Today | `Organization.timezone` added (read-only, additive): the client computes today in the organization's timezone, as the server does for overdue |
+| Columns | The first page (50) comes with the board; later pages load automatically near the end of a column (`boardColumn`, one list per project, column, and filter). Found while building: Apollo's `relayStylePagination` appends a page whose cursor it cannot find, which would repeat cards after a remount; a small custom policy appends only a page that continues the list and otherwise starts over. Long columns are virtualized (`@tanstack/react-virtual`). |
+| New task | Every role. Title, description, status (project default unless chosen), priority, assignee, due date (MUI date picker with dayjs), up to 20 labels. The created card is inserted at the top of its column when it matches the current filters (the client mirrors the API's filter rules), and the counts refresh with one summary query; otherwise a notice says the filters hide it. |
+| Task details | A read-only side pane, opened by a card, addressable as `?task=ENG-12`. Edits stay Designed. |
+| Dependencies | `@mui/x-date-pickers`, `dayjs`, `@tanstack/react-virtual` |
+| Measured (exit) | Seeded ENG (2,500 tasks, 2,360 live), dev server, local API through PgBouncer, 15 cold loads: board visible p50 410 ms, p90 421 ms; `TaskBoard` operation p50 39 ms, p90 45 ms; 172.8 KB; one board request and no column page requests on load. Column paging checked on Backlog (738): 288 positions swept, no gaps, no repeats, about 17 card elements in the DOM. |
+| E2E | CI seeds the database (`npm run seed`) before the real-stack tests; the board test signs in as a demo account and only reads |
+
