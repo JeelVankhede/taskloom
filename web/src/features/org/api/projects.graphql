@@ -1,0 +1,31 @@
+fragment ProjectCardFields on Project {
+  id
+  key
+  name
+  description
+}
+
+# Org-scoped: runs in the org sent as X-Org-Id (see useOrgQuery).
+query OrgProjects($first: Int!, $after: String) {
+  organization {
+    id
+    projects(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          ...ProjectCardFields
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+mutation CreateProject($input: CreateProjectInput!) {
+  createProject(input: $input) {
+    ...ProjectCardFields
+  }
+}
