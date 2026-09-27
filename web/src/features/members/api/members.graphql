@@ -1,0 +1,72 @@
+fragment MemberFields on Member {
+  role
+  status
+  joinedAt
+  user {
+    id
+    displayName
+    email
+  }
+}
+
+query OrgMembers($first: Int!, $after: String) {
+  organization {
+    id
+    members(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          ...MemberFields
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+# Owners and admins only.
+query PendingJoinRequests($first: Int!, $after: String) {
+  organization {
+    id
+    joinRequests(status: PENDING, first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          id
+          createdAt
+          user {
+            id
+            displayName
+            email
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+mutation AddMember($email: String!, $role: Role!) {
+  addMember(email: $email, role: $role) {
+    ...MemberFields
+  }
+}
+
+mutation ApproveJoinRequest($id: ID!, $role: Role!) {
+  approveJoinRequest(id: $id, role: $role) {
+    ...MemberFields
+  }
+}
+
+mutation RejectJoinRequest($id: ID!) {
+  rejectJoinRequest(id: $id) {
+    id
+    status
+  }
+}

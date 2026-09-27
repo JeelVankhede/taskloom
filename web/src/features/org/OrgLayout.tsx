@@ -1,12 +1,11 @@
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import { useEffect } from 'react';
-import { Link, Outlet, useMatch, useParams } from 'react-router';
+import { Fragment, useEffect } from 'react';
+import { Outlet, useParams } from 'react-router';
 import { errorCode } from '../../app/apollo';
 import { useViewer } from '../../app/shell/useViewer';
 import { Button, EmptyState, ErrorState, ListSkeleton } from '../../design-system';
 import { messageFor } from '../../lib/error-messages';
 import { writeLastOrg } from '../../lib/last-org';
+import { OrgTabs } from './components/OrgTabs';
 import { type CurrentOrg, OrgContext } from './org-context';
 
 /**
@@ -17,7 +16,6 @@ import { type CurrentOrg, OrgContext } from './org-context';
 export function OrgLayout() {
   const { orgSlug } = useParams();
   const { data, error, loading, refetch } = useViewer();
-  const membersTab = useMatch('/o/:orgSlug/members');
 
   const membership = data?.viewer.memberships.find((m) => m.organization.slug === orgSlug);
   const org: CurrentOrg | null = membership
@@ -45,17 +43,14 @@ export function OrgLayout() {
     );
   }
 
+  // Keyed by organization: switching remounts every org screen, so no screen can show the
+  // previous organization's data (see useOrgQuery).
   return (
     <OrgContext.Provider value={org}>
-      <Tabs
-        value={membersTab ? 'members' : 'dashboard'}
-        aria-label="Organization sections"
-        sx={{ mb: 6, borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Tab label="Dashboard" value="dashboard" component={Link} to={`/o/${org.slug}`} />
-        <Tab label="Members" value="members" component={Link} to={`/o/${org.slug}/members`} />
-      </Tabs>
-      <Outlet />
+      <Fragment key={org.id}>
+        <OrgTabs />
+        <Outlet />
+      </Fragment>
     </OrgContext.Provider>
   );
 }

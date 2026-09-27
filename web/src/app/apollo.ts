@@ -7,7 +7,9 @@ import {
   ServerError,
 } from '@apollo/client';
 import { SetContextLink } from '@apollo/client/link/context';
+
 import { ErrorLink } from '@apollo/client/link/error';
+import { relayStylePagination } from '@apollo/client/utilities';
 import { ErrorCode, ORG_HEADER } from '@taskloom/contracts';
 import { from, switchMap, throwError } from 'rxjs';
 import { session } from '../features/auth/session';
@@ -66,10 +68,27 @@ const refreshLink = new ErrorLink(({ error, operation, forward }) => {
   );
 });
 
+/** The normalized cache and its field policies. Tests build theirs with this too. */
+export function createCache(): InMemoryCache {
+  return new InMemoryCache({
+    typePolicies: {
+      // Lists page with fetchMore: pages append under the organization's own id, so one
+      // organization's pages never mix with another's.
+      Organization: {
+        fields: {
+          projects: relayStylePagination(['includeArchived']),
+          members: relayStylePagination(),
+          joinRequests: relayStylePagination(['status']),
+        },
+      },
+    },
+  });
+}
+
 export function createApolloClient(uri = '/graphql'): ApolloClient {
   const client = new ApolloClient({
     link: ApolloLink.from([refreshLink, headersLink, new HttpLink({ uri })]),
-    cache: new InMemoryCache(),
+    cache: createCache(),
   });
 
   // A different user (or none) must never see the previous user's cached data.
