@@ -6,21 +6,21 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 
 ## Deliverables
 
-| Brief item                             | Location                                                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 1.1 GraphQL type definitions           | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql)                                         |
-| 1.1 SQL and ORM definitions            | [`api/prisma/schema/`](api/prisma/schema/), [`api/prisma/migrations/`](api/prisma/migrations/)                   |
-| 1.2 Technical documentation            | [`docs/1.2-data-model.md`](docs/1.2-data-model.md)                                                               |
-| 1.3 AI critique output                 | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md)                                                             |
-| 1.3 My analysis                        | [`docs/1.3-analysis.md`](docs/1.3-analysis.md)                                                                   |
-| 2.1 GraphQL schema and resolvers       | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql), [`api/src/modules/`](api/src/modules/) |
-| 2.1 Design decisions                   | [`docs/2.1-api-design.md`](docs/2.1-api-design.md)                                                               |
-| 2.2 React component                    | [`web/src/features/task-board/`](web/src/features/task-board/)                                                   |
-| 2.2 State and architecture decisions   | [`docs/2.2-ui-architecture.md`](docs/2.2-ui-architecture.md)                                                     |
-| 3.1 RFC                                | [`docs/3.1-rfc-board-performance.md`](docs/3.1-rfc-board-performance.md)                                         |
-| AI transcript and prompting commentary | [`docs/ai-transcript/`](docs/ai-transcript/)                                                                     |
-| Full design detail (appendix)          | [`docs/design-reference.md`](docs/design-reference.md)                                                           |
-| Implementation plan                    | [`docs/implementation-plan.md`](docs/implementation-plan.md)                                                     |
+| Brief item                             | Location                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 GraphQL type definitions           | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql)                                                         |
+| 1.1 SQL and ORM definitions            | [`api/prisma/schema/`](api/prisma/schema/), [`api/prisma/migrations/`](api/prisma/migrations/)                                   |
+| 1.2 Technical documentation            | [`docs/1.2-data-model.md`](docs/1.2-data-model.md)                                                                               |
+| 1.3 AI critique output                 | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md)                                                                             |
+| 1.3 My analysis                        | [`docs/1.3-analysis.md`](docs/1.3-analysis.md)                                                                                   |
+| 2.1 GraphQL schema and resolvers       | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql), [`api/src/modules/`](api/src/modules/)                 |
+| 2.1 Design decisions                   | [`docs/2.1-api-design.md`](docs/2.1-api-design.md)                                                                               |
+| 2.2 React component                    | [`web/src/features/task-board/`](web/src/features/task-board/)                                                                   |
+| 2.2 State and architecture decisions   | [`docs/2.2-ui-architecture.md`](docs/2.2-ui-architecture.md)                                                                     |
+| 3.1 RFC                                | [`docs/3.1-rfc-board-performance.md`](docs/3.1-rfc-board-performance.md)                                                         |
+| AI transcript and prompting commentary | [`docs/ai-transcript/`](docs/ai-transcript/)                                                                                     |
+| Full design detail (appendix)          | [`docs/design-reference-data.md`](docs/design-reference-data.md), [`docs/design-reference-api.md`](docs/design-reference-api.md) |
+| Implementation plan                    | [`docs/implementation-plan.md`](docs/implementation-plan.md)                                                                     |
 
 ## Reading Order
 
@@ -29,7 +29,7 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 3. [1.3 Analysis](docs/1.3-analysis.md), with the [AI critique](docs/1.3-ai-critique.md) beside it.
 4. [2.1 API design](docs/2.1-api-design.md) and [2.2 UI architecture](docs/2.2-ui-architecture.md), then the code.
 5. [3.1 RFC](docs/3.1-rfc-board-performance.md).
-6. [Design reference](docs/design-reference.md), when a detail is needed.
+6. The design reference, when a detail is needed: [data](docs/design-reference-data.md) and [API](docs/design-reference-api.md).
 7. [Implementation plan](docs/implementation-plan.md), for how the build is sequenced and verified.
 
 ## What Is Built and What Is Designed
@@ -103,7 +103,8 @@ After `npm run seed`, every account below uses the password `taskloom-demo-2026`
 │   ├── 2.1-api-design.md
 │   ├── 2.2-ui-architecture.md
 │   ├── 3.1-rfc-board-performance.md
-│   ├── design-reference.md
+│   ├── design-reference-data.md
+│   ├── design-reference-api.md
 │   ├── implementation-plan.md
 │   └── ai-transcript/
 ├── packages/contracts/       schema.graphql and TypeScript shared by api and web
