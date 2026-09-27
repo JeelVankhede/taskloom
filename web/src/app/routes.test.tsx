@@ -46,7 +46,10 @@ describe('landing', () => {
   it('opens onboarding when the user has no organization', async () => {
     const router = renderApp('/', [viewerMock([])]);
     await waitFor(() => expect(router.state.location.pathname).toBe('/onboarding'));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Welcome, Ada Lovelace');
+    // Navigations render in a transition: the URL can change before the page is on screen.
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(
+      'Welcome, Ada Lovelace',
+    );
   });
 
   it('opens the last organization used in this browser', async () => {
