@@ -13,7 +13,7 @@ import { HomeRedirect } from './shell/HomeRedirect';
 
 /**
  * Every route (implementation plan section 3.6). Each screen has its own error boundary, so a
- * crash replaces only that screen. /o/:orgSlug/p/:projectKey (the board) arrives in Phase 9.
+ * crash replaces only that screen.
  */
 export const routes: RouteObject[] = [
   {
@@ -41,6 +41,16 @@ export const routes: RouteObject[] = [
                 children: [
                   { index: true, element: <DashboardPage />, errorElement: <RouteError /> },
                   { path: 'members', element: <MembersPage />, errorElement: <RouteError /> },
+                  {
+                    // Loaded on demand: the board, its charts, and date pickers stay out of the
+                    // main bundle.
+                    path: 'p/:projectKey',
+                    lazy: async () => ({
+                      Component: (await import('../features/task-board/TaskBoardPage'))
+                        .TaskBoardPage,
+                    }),
+                    errorElement: <RouteError />,
+                  },
                 ],
               },
             ],

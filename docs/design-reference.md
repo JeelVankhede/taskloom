@@ -295,7 +295,7 @@ Moves and creates never wait for each other. The bulk reopen routine locks membe
 
 **Authentication.** REST routes `/auth/signup`, `/auth/signin`, `/auth/refresh`, and `/auth/signout` (Built). GraphQL takes the access token as a bearer header.
 
-**Queries (Built).** `viewer` (user, memberships, own join requests), `organization` (with `members` and `joinRequests` connections), `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks(filter, orderBy, first, after)`, `taskSummary(filter)`, `board(projectId, filter, first)`, `boardColumn(projectId, statusId, filter, first, after)`, `labels(includeArchived)`. Missing or hidden rows are `NOT_FOUND`. Tasks in archived projects are excluded unless the filter sets `includeArchived`.
+**Queries (Built).** `viewer` (user, memberships, own join requests), `organization` (with `timezone`, which decides today and overdue for clients, and `members` and `joinRequests` connections), `project`, `projectByKey`, `task`, `taskByIdentifier`, `tasks(filter, orderBy, first, after)`, `taskSummary(filter)`, `board(projectId, filter, first)`, `boardColumn(projectId, statusId, filter, first, after)`, `labels(includeArchived)`. Missing or hidden rows are `NOT_FOUND`. Tasks in archived projects are excluded unless the filter sets `includeArchived`.
 
 **Mutations (Built).** `createOrganization`, `requestToJoinOrganization`, `cancelJoinRequest`, `approveJoinRequest(id, role)`, `rejectJoinRequest`, `addMember(email, role)`, `createProject`, `createTask`.
 

@@ -1,15 +1,18 @@
 import type { Decorator, Preview } from '@storybook/react-vite';
 import { MemoryRouter } from 'react-router';
 import { ThemeProvider } from '../src/design-system';
+import { DateProvider } from '../src/design-system/DateProvider';
 import { SchemeSync } from './SchemeSync';
 
 const withTheme: Decorator = (Story, context) => (
   <ThemeProvider>
     <SchemeSync mode={context.globals.theme === 'dark' ? 'dark' : 'light'}>
       <MemoryRouter>
-        <div style={{ padding: 16 }}>
-          <Story />
-        </div>
+        <DateProvider>
+          <div style={{ padding: 16 }}>
+            <Story />
+          </div>
+        </DateProvider>
       </MemoryRouter>
     </SchemeSync>
   </ThemeProvider>

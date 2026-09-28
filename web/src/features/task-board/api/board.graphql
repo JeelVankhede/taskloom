@@ -1,0 +1,160 @@
+fragment TaskCardFields on Task {
+  id
+  identifier
+  title
+  priority
+  dueDate
+  isClosed
+  status {
+    id
+  }
+  assignee {
+    id
+    displayName
+  }
+  labels {
+    id
+    name
+    color
+  }
+}
+
+fragment TaskPage on TaskConnection {
+  edges {
+    cursor
+    node {
+      ...TaskCardFields
+    }
+  }
+  pageInfo {
+    hasNextPage
+    endCursor
+  }
+}
+
+fragment SummaryFields on TaskSummary {
+  total
+  open
+  closed
+  overdue
+  byStatus {
+    status {
+      id
+    }
+    total
+  }
+  byPriority {
+    priority
+    total
+  }
+}
+
+# The project for /o/:orgSlug/p/:projectKey, and the org timezone that decides "today".
+query BoardProject($key: String!) {
+  projectByKey(key: $key) {
+    id
+    key
+    name
+    isArchived
+  }
+  organization {
+    id
+    timezone
+  }
+}
+
+# Board and summary in one operation: one read-only snapshot, so column counts, cards, and the
+# chart always agree. The filter names this project (the summary needs it for byStatus).
+query TaskBoard($projectId: ID!, $filter: TaskFilter!, $first: Int!) {
+  board(projectId: $projectId, filter: $filter, first: $first) {
+    columns {
+      status {
+        id
+        name
+        isClosed
+        position
+      }
+      tasks {
+        ...TaskPage
+      }
+    }
+  }
+  taskSummary(filter: $filter) {
+    ...SummaryFields
+  }
+}
+
+# Counts only, refreshed after a task is created (the card itself is inserted locally).
+query TaskSummary($filter: TaskFilter!) {
+  taskSummary(filter: $filter) {
+    ...SummaryFields
+  }
+}
+
+# The next pages of one column. Pages accumulate under (projectId, statusId, filter).
+query BoardColumn(
+  $projectId: ID!
+  $statusId: ID!
+  $filter: TaskFilter!
+  $first: Int!
+  $after: String
+) {
+  boardColumn(
+    projectId: $projectId
+    statusId: $statusId
+    filter: $filter
+    first: $first
+    after: $after
+  ) {
+    ...TaskPage
+  }
+}
+
+query TaskDetail($identifier: String!) {
+  taskByIdentifier(identifier: $identifier) {
+    ...TaskCardFields
+    number
+    description
+    closedAt
+    createdAt
+    updatedAt
+    status {
+      id
+      name
+      isClosed
+    }
+    createdBy {
+      id
+      displayName
+    }
+  }
+}
+
+# Options for filters and the New task dialog.
+query BoardOptions($first: Int!) {
+  labels {
+    id
+    name
+    color
+  }
+  organization {
+    id
+    members(first: $first) {
+      edges {
+        node {
+          status
+          user {
+            id
+            displayName
+          }
+        }
+      }
+    }
+  }
+}
+
+mutation CreateTask($input: CreateTaskInput!) {
+  createTask(input: $input) {
+    ...TaskCardFields
+  }
+}

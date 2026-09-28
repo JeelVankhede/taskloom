@@ -14,7 +14,11 @@ import { useOrgOperationContext } from '../org-context';
 export function useOrgQuery<TData, TVariables extends OperationVariables>(
   document: TypedDocumentNode<TData, TVariables>,
   variables: NoInfer<TVariables>,
-  options: { skip?: boolean } = {},
+  options: {
+    skip?: boolean;
+    /** Show cached data for new variables at once, but also refresh it (board filters). */
+    refreshOnNewVariables?: boolean;
+  } = {},
 ) {
   const context = useOrgOperationContext();
   return useQuery(document, {
@@ -22,7 +26,10 @@ export function useOrgQuery<TData, TVariables extends OperationVariables>(
     context,
     skip: options.skip,
     fetchPolicy: 'network-only',
-    nextFetchPolicy: 'cache-first',
+    nextFetchPolicy: (_current, { reason }) =>
+      options.refreshOnNewVariables && reason === 'variables-changed'
+        ? 'cache-and-network'
+        : 'cache-first',
     notifyOnNetworkStatusChange: true,
   });
 }

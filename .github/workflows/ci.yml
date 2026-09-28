@@ -51,5 +51,13 @@ jobs:
       # One smoke test against the real stack (API, PostgreSQL, PgBouncer, Vite proxy).
       - run: npm run db:up
       - run: npm run migrate
+      # Demo data (ENG has 2,500 tasks) for the board test, which reads it.
+      - run: npm run seed
       - run: npm run build -w @taskloom/api
       - run: npm run e2e:stack
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: web/test-results/
+          retention-days: 7

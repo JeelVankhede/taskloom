@@ -68,10 +68,31 @@ const refreshLink = new ErrorLink(({ error, operation, forward }) => {
   );
 });
 
+interface ColumnPage {
+  edges: { cursor: string }[];
+  pageInfo: unknown;
+}
+
 /** The normalized cache and its field policies. Tests build theirs with this too. */
 export function createCache(): InMemoryCache {
   return new InMemoryCache({
     typePolicies: {
+      Query: {
+        fields: {
+          // A column's later pages (the first page comes with the board). One list per project,
+          // column, and filter. A page that starts where the list ends is appended; any other
+          // page starts the list again (for example the first request after a remount), so
+          // cards are never duplicated.
+          boardColumn: {
+            keyArgs: ['projectId', 'statusId', 'filter'],
+            merge(existing: ColumnPage | undefined, incoming: ColumnPage, { args }) {
+              const last = existing?.edges.at(-1)?.cursor;
+              if (!existing || !args?.after || args.after !== last) return incoming;
+              return { ...incoming, edges: [...existing.edges, ...incoming.edges] };
+            },
+          },
+        },
+      },
       // Lists page with fetchMore: pages append under the organization's own id, so one
       // organization's pages never mix with another's.
       Organization: {
