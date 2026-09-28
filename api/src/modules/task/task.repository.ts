@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client.js';
 import { DbContext } from '../../platform/database/db-context.js';
 
 /** A task as the GraphQL Task parent. Priority 0 means NONE (SQL NULL). */
@@ -15,7 +16,19 @@ export interface TaskRow {
   isClosed: boolean;
   closedAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
+  archivedAt: Date | null;
+  createdById: string;
+  rank: string;
 }
+
+/** The columns every task query selects, from alias t. Due date stays a string. */
+export const TASK_COLUMNS = Prisma.sql`
+  t.id, t.project_id AS "projectId", t.number, t.title, t.description,
+  coalesce(t.priority, 0)::int AS priority, t.due_date::text AS "dueDate", t.status_id AS "statusId",
+  t.assignee_id AS "assigneeId", t.is_closed AS "isClosed", t.closed_at AS "closedAt",
+  t.created_at AS "createdAt", t.updated_at AS "updatedAt", t.archived_at AS "archivedAt",
+  t.created_by AS "createdById", t.rank`;
 
 export interface NewTask {
   projectId: string;
@@ -34,10 +47,7 @@ export class TaskRepository {
 
   async find(id: string): Promise<TaskRow | undefined> {
     const [row] = await this.db.tx.$queryRaw<TaskRow[]>`
-      SELECT id, project_id AS "projectId", number, title, description,
-             coalesce(priority, 0)::int AS priority, due_date::text AS "dueDate", status_id AS "statusId",
-             assignee_id AS "assigneeId", is_closed AS "isClosed", closed_at AS "closedAt", created_at AS "createdAt"
-      FROM tasks WHERE org_id = ${this.db.orgId}::uuid AND id = ${id}::uuid`;
+      SELECT ${TASK_COLUMNS} FROM tasks t WHERE t.org_id = ${this.db.orgId}::uuid AND t.id = ${id}::uuid`;
     return row;
   }
 

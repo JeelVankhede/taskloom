@@ -10,15 +10,21 @@ export interface StatusRecord {
   id: string;
   name: string;
   isClosed: boolean;
+  position: number;
 }
 export interface ProjectKeyRecord {
   id: string;
   key: string;
+  name: string;
+  description: string | null;
+  isArchived: boolean;
+  createdAt: Date;
 }
 export interface LabelRecord {
   id: string;
   name: string;
   color: string;
+  isArchived: boolean;
 }
 
 const byId = <T extends { id: string }>(ids: readonly string[], rows: T[]) => {
@@ -52,7 +58,7 @@ export class Loaders {
         byId(
           ids,
           await this.db.tx.$queryRaw<StatusRecord[]>`
-            SELECT id, name, is_closed AS "isClosed" FROM project_statuses WHERE id = ANY(${ids}::uuid[])`,
+            SELECT id, name, is_closed AS "isClosed", position FROM project_statuses WHERE id = ANY(${ids}::uuid[])`,
         ),
       )
       .load(id);
@@ -64,7 +70,8 @@ export class Loaders {
         byId(
           ids,
           await this.db.tx.$queryRaw<ProjectKeyRecord[]>`
-            SELECT id, key FROM projects WHERE id = ANY(${ids}::uuid[])`,
+            SELECT id, key, name, description, state = 'archived' AS "isArchived", created_at AS "createdAt"
+            FROM projects WHERE id = ANY(${ids}::uuid[])`,
         ),
       )
       .load(id);
@@ -74,7 +81,7 @@ export class Loaders {
     return this.db.loaders
       .get<string, LabelRecord[]>('labelsOfTask', async (taskIds) => {
         const rows = await this.db.tx.$queryRaw<(LabelRecord & { taskId: string })[]>`
-          SELECT tl.task_id AS "taskId", l.id, l.name, l.color
+          SELECT tl.task_id AS "taskId", l.id, l.name, l.color, l.archived_at IS NOT NULL AS "isArchived"
           FROM task_labels tl JOIN labels l ON l.org_id = tl.org_id AND l.id = tl.label_id
           WHERE tl.task_id = ANY(${taskIds}::uuid[])
           ORDER BY l.name, l.id`;

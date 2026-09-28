@@ -47,6 +47,35 @@ type Query {
   viewer: Viewer!
   "The organization selected by the X-Org-Id header."
   organization: Organization!
+  "NOT_FOUND when missing or hidden."
+  project(id: ID!): Project
+  "Project by its key, for example ENG. NOT_FOUND when missing or hidden."
+  projectByKey(key: String!): Project
+  "NOT_FOUND when missing or hidden."
+  task(id: ID!): Task
+  "Task by identifier, for example ENG-12 (any letter case). NOT_FOUND when missing, hidden, or malformed."
+  taskByIdentifier(identifier: String!): Task
+  "Tasks matching the filter. RANK needs exactly one project in the filter."
+  tasks(
+    filter: TaskFilter
+    orderBy: TaskOrder = CREATED_AT
+    first: Int
+    after: String
+  ): TaskConnection!
+  "Counts for the same filter, from the same snapshot as the list."
+  taskSummary(filter: TaskFilter): TaskSummary!
+  "The first page of every live column of one project, in board order."
+  board(projectId: ID!, filter: TaskFilter, first: Int): Board!
+  "The next page of one board column."
+  boardColumn(
+    projectId: ID!
+    statusId: ID!
+    filter: TaskFilter
+    first: Int
+    after: String
+  ): TaskConnection!
+  "Labels by name. Capped at 500 live labels per organization."
+  labels(includeArchived: Boolean = false): [Label!]!
 }
 
 type Mutation {
@@ -179,12 +208,15 @@ type Status {
   id: ID!
   name: String!
   isClosed: Boolean!
+  "Column order on the board."
+  position: Int!
 }
 
 type Label {
   id: ID!
   name: String!
   color: String!
+  isArchived: Boolean!
 }
 
 "Core task fields. Phase 6 adds filters, the board, and history."
@@ -204,6 +236,101 @@ type Task {
   "Only while the task is closed."
   closedAt: DateTime
   createdAt: DateTime!
+  updatedAt: DateTime!
+  archivedAt: DateTime
+  project: Project!
+  createdBy: User
+}
+
+type TaskEdge {
+  cursor: String!
+  node: Task!
+}
+
+type TaskConnection {
+  edges: [TaskEdge!]!
+  pageInfo: PageInfo!
+}
+
+"Fixed directions, each backed by an index."
+enum TaskOrder {
+  "Newest first (the default)."
+  CREATED_AT
+  "Soonest due first."
+  DUE_DATE
+  "Urgent first, no priority last."
+  PRIORITY
+  "Board order. Needs exactly one project in the filter."
+  RANK
+}
+
+"Fields combine with AND; values in a list combine with OR, except labelsAll."
+input TaskFilter {
+  projectIds: [ID!]
+  statusIds: [ID!]
+  assigneeIds: [ID!]
+  "Also match unassigned tasks (alone: only unassigned tasks)."
+  includeUnassigned: Boolean = false
+  "NONE matches tasks without a priority."
+  priorities: [Priority!]
+  "Inclusive."
+  dueFrom: Date
+  "Inclusive."
+  dueTo: Date
+  "At least one of these labels."
+  labelsAny: [ID!]
+  "Every one of these labels."
+  labelsAll: [ID!]
+  isClosed: Boolean
+  "Open, not archived, due before today in the organization's timezone, in an active project."
+  overdueOnly: Boolean = false
+  "Include archived tasks and tasks in archived projects."
+  includeArchived: Boolean = false
+}
+
+type TaskSummary {
+  total: Int!
+  open: Int!
+  closed: Int!
+  overdue: Int!
+  "Only when the filter names exactly one project; every live status, zero-filled."
+  byStatus: [StatusCount!]
+  "Always five entries, URGENT to NONE."
+  byPriority: [PriorityCount!]!
+  "Everyone with a matching task, and one entry with user null for unassigned."
+  byAssignee: [AssigneeCount!]!
+}
+
+type StatusCount {
+  status: Status!
+  total: Int!
+  open: Int!
+  overdue: Int!
+}
+
+type PriorityCount {
+  priority: Priority!
+  total: Int!
+  open: Int!
+  overdue: Int!
+}
+
+type AssigneeCount {
+  user: User
+  total: Int!
+  open: Int!
+  overdue: Int!
+}
+
+type Board {
+  project: Project!
+  columns: [BoardColumn!]!
+}
+
+type BoardColumn {
+  status: Status!
+  "The first page in board order; load more with boardColumn."
+  tasks: TaskConnection!
 }
 
 input CreateOrganizationInput {

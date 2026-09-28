@@ -189,7 +189,12 @@ export class TransactionPlugin implements ApolloServerPlugin<GraphQLContext> {
     committed: boolean,
   ): void {
     const holdMs = Date.now() - startedAt;
-    const fields = { operation: ctx.operationName ?? ctx.operation?.operation, holdMs, committed };
+    const fields = {
+      operation: ctx.operationName ?? ctx.operation?.operation,
+      holdMs,
+      statements: this.cls.get('statements') ?? 0,
+      committed,
+    };
     if (holdMs > LIMITS.slowTransactionMs) this.logger.warn(fields, 'slow request transaction');
     else this.logger.debug(fields, 'request transaction');
   }

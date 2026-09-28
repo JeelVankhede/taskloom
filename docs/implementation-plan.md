@@ -409,3 +409,20 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Titles | From word lists, for example "Fix flaky login test" |
 | Safety | Refuses when `NODE_ENV=production` or the database host is not local |
 | Rank keys | Found while seeding: the Phase 1 rank keys grew one character per six top-of-column creates and passed the 128-character limit after about 770 creates in one column. Keys now use fractional indexing with a length-prefixed integer part, and a new task's key is placed before the project's lowest rank, which is below its column's first card and unique in the project. Measured: 20,000 top inserts stay at 4 characters; 3,000 creates interleaved across columns stay at 3. The migration refuses to run while any task exists (existing keys cannot be read by the new functions); local databases are rebuilt with `npm run db:reset`. Rebalance stays Designed, for dense drag-and-drop moves. |
+
+### Phase 6: Read API (Task 2.1)
+
+| Topic | Decision |
+| --- | --- |
+| Column paging | `boardColumn(projectId, statusId, filter, first, after)`: one column loads more without reloading the others |
+| Column counts | From `taskSummary.byStatus` (same filter); the board returns columns and first pages only |
+| Archived projects | Their tasks are excluded from `tasks`, `board`, and `taskSummary` unless `filter.includeArchived`; overdue never counts them |
+| Orders | `TaskOrder` enum with fixed directions, each index-backed: `CREATED_AT` newest first (default), `DUE_DATE` soonest first, `PRIORITY` urgent first and none last, `RANK` board order with exactly one project (`INVALID_ORDER` otherwise). Cursors carry their order; a cursor from another order is `VALIDATION_FAILED`. |
+| Not found | `project`, `projectByKey`, `task`, `taskByIdentifier` return `NOT_FOUND` for missing or hidden rows; non-uuid ids in arguments or filters are `NOT_FOUND` |
+| Identifiers | Any letter case, trimmed; malformed is `NOT_FOUND` |
+| Task fields added | `project`, `createdBy`, `updatedAt`, `archivedAt`; comments and the timeline stay Designed |
+| Labels | `labels(includeArchived = false)`, a plain list by name |
+| Plan tests (T24) | 5,000 tasks across two projects (with one project an org-wide index covers the same rows), inserted one statement at a time, then `ANALYZE`; `EXPLAIN` as `app_user` on the exact SQL the repository builds |
+| Summary assignees | Anyone with a matching task, including deactivated members, plus one unassigned entry |
+| Statement ceiling | Counts data statements (resolvers, through `DbContext`), not the 4 fixed lifecycle statements. Board plus summary uses 8 (the summary's assignees resolve in a later tick than the board's, so users batch twice), the same for any project size. The count is logged per request (`statements`). |
+| Measured locally | Seeded ENG (2,500 tasks), compiled API through PgBouncer: board plus summary 20 ms p50, 22 ms p90, 67 KB; each `tasks` order about 5 ms |
