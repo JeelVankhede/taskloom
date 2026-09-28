@@ -1,6 +1,6 @@
 # AI Transcript and Prompting Strategy
 
-Sessions 1 to 6 ran in the Claude app; their exports are complete and unedited. Sessions 7 and 8 are one Claude Code session, exported complete and unedited as well. This page explains how I used the AI, how I checked it, and where I overruled it.
+Sessions 1 to 6 ran in the Claude app; their exports are complete and unedited. Sessions 7 and 8 are one Claude Code session, exported complete and unedited as well: [taskloom-claude-code-session-transcript.zip](https://github.com/JeelVankhede/taskloom/releases/download/ai-transcript/taskloom-claude-code-session-transcript.zip), attached to the [`ai-transcript` release](https://github.com/JeelVankhede/taskloom/releases/tag/ai-transcript) so it stays out of the git history. This page explains how I used the AI, how I checked it, and where I overruled it.
 
 ## Sessions
 
