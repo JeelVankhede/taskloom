@@ -4,15 +4,16 @@ Multi-tenant project management platform (a simplified Linear or Jira), built as
 
 ## Source of truth
 
-| Topic                                                                                  | Document                            |
-| -------------------------------------------------------------------------------------- | ----------------------------------- |
-| Data model, tenancy, indexes, migrations                                               | `docs/1.2-data-model.md`            |
-| Roles, invariants, tests (T1 to T28), mutation behavior, GraphQL contract, error codes | `docs/design-reference.md`          |
-| Review decisions                                                                       | `docs/1.3-analysis.md`              |
-| API design                                                                             | `docs/2.1-api-design.md`            |
-| UI architecture                                                                        | `docs/2.2-ui-architecture.md`       |
-| Board performance                                                                      | `docs/3.1-rfc-board-performance.md` |
-| Implementation plan: phases, exit criteria, open questions                             | `docs/implementation-plan.md`       |
+| Topic                                                      | Document                            |
+| ---------------------------------------------------------- | ----------------------------------- |
+| Data model, tenancy, indexes, migrations                   | `docs/1.2-data-model.md`            |
+| Scope, roles, entity rules, invariants, tests (T1 to T33)  | `docs/design-reference-data.md`     |
+| Mutation behavior, GraphQL contract, error codes           | `docs/design-reference-api.md`      |
+| Review decisions                                           | `docs/1.3-analysis.md`              |
+| API design                                                 | `docs/2.1-api-design.md`            |
+| UI architecture                                            | `docs/2.2-ui-architecture.md`       |
+| Board performance                                          | `docs/3.1-rfc-board-performance.md` |
+| Implementation plan: phases, exit criteria, open questions | `docs/implementation-plan.md`       |
 
 Delivery tiers are Built, Designed, and Later (README). Build only the Built tier, which includes accounts, organization creation, join requests, member add, and project creation. Do not implement Designed or Later items unless asked. Work phase by phase as the implementation plan orders it.
 
@@ -45,6 +46,7 @@ Scoped rules load automatically: `.claude/rules/api-*.md` for `api/**`, `.claude
 
 ```bash
 npm install
+npm run generate   # contracts package and Prisma client (after cp .env.example .env)
 npm run db:up      # PostgreSQL 18 and PgBouncer in Docker
 npm run db:reset   # local only: re-create the dev databases and migrate
 npm run migrate    # Prisma migration chain

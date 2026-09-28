@@ -2,25 +2,25 @@
 
 Submission for the Compliance Foundry Senior Full-Stack Developer take-home assessment. The platform is a multi-tenant project manager in the style of a simplified Linear or Jira.
 
-**Status:** the design documents and the repository scaffold are complete. The code is being built in the phases of the [implementation plan](docs/implementation-plan.md).
+**Status:** the Built tier below is implemented and tested, in the ten phases of the [implementation plan](docs/implementation-plan.md); section 8 there records every decision made while building. The Designed and Later tiers are specified, not built.
 
 ## Deliverables
 
-| Brief item                             | Location                                                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 1.1 GraphQL type definitions           | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql)                                         |
-| 1.1 SQL and ORM definitions            | [`api/prisma/schema/`](api/prisma/schema/), [`api/prisma/migrations/`](api/prisma/migrations/)                   |
-| 1.2 Technical documentation            | [`docs/1.2-data-model.md`](docs/1.2-data-model.md)                                                               |
-| 1.3 AI critique output                 | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md)                                                             |
-| 1.3 My analysis                        | [`docs/1.3-analysis.md`](docs/1.3-analysis.md)                                                                   |
-| 2.1 GraphQL schema and resolvers       | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql), [`api/src/modules/`](api/src/modules/) |
-| 2.1 Design decisions                   | [`docs/2.1-api-design.md`](docs/2.1-api-design.md)                                                               |
-| 2.2 React component                    | [`web/src/features/task-board/`](web/src/features/task-board/)                                                   |
-| 2.2 State and architecture decisions   | [`docs/2.2-ui-architecture.md`](docs/2.2-ui-architecture.md)                                                     |
-| 3.1 RFC                                | [`docs/3.1-rfc-board-performance.md`](docs/3.1-rfc-board-performance.md)                                         |
-| AI transcript and prompting commentary | [`docs/ai-transcript/`](docs/ai-transcript/)                                                                     |
-| Full design detail (appendix)          | [`docs/design-reference.md`](docs/design-reference.md)                                                           |
-| Implementation plan                    | [`docs/implementation-plan.md`](docs/implementation-plan.md)                                                     |
+| Brief item                             | Location                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 GraphQL type definitions           | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql)                                                         |
+| 1.1 SQL and ORM definitions            | [`api/prisma/schema/`](api/prisma/schema/), [`api/prisma/migrations/`](api/prisma/migrations/)                                   |
+| 1.2 Technical documentation            | [`docs/1.2-data-model.md`](docs/1.2-data-model.md)                                                                               |
+| 1.3 AI critique output                 | [`docs/1.3-ai-critique.md`](docs/1.3-ai-critique.md)                                                                             |
+| 1.3 My analysis                        | [`docs/1.3-analysis.md`](docs/1.3-analysis.md)                                                                                   |
+| 2.1 GraphQL schema and resolvers       | [`packages/contracts/schema.graphql`](packages/contracts/schema.graphql), [`api/src/modules/`](api/src/modules/)                 |
+| 2.1 Design decisions                   | [`docs/2.1-api-design.md`](docs/2.1-api-design.md)                                                                               |
+| 2.2 React component                    | [`web/src/features/task-board/`](web/src/features/task-board/)                                                                   |
+| 2.2 State and architecture decisions   | [`docs/2.2-ui-architecture.md`](docs/2.2-ui-architecture.md)                                                                     |
+| 3.1 RFC                                | [`docs/3.1-rfc-board-performance.md`](docs/3.1-rfc-board-performance.md)                                                         |
+| AI transcript and prompting commentary | [`docs/ai-transcript/`](docs/ai-transcript/)                                                                                     |
+| Full design detail (appendix)          | [`docs/design-reference-data.md`](docs/design-reference-data.md), [`docs/design-reference-api.md`](docs/design-reference-api.md) |
+| Implementation plan                    | [`docs/implementation-plan.md`](docs/implementation-plan.md)                                                                     |
 
 ## Reading Order
 
@@ -29,18 +29,18 @@ Submission for the Compliance Foundry Senior Full-Stack Developer take-home asse
 3. [1.3 Analysis](docs/1.3-analysis.md), with the [AI critique](docs/1.3-ai-critique.md) beside it.
 4. [2.1 API design](docs/2.1-api-design.md) and [2.2 UI architecture](docs/2.2-ui-architecture.md), then the code.
 5. [3.1 RFC](docs/3.1-rfc-board-performance.md).
-6. [Design reference](docs/design-reference.md), when a detail is needed.
+6. The design reference, when a detail is needed: [data](docs/design-reference-data.md) and [API](docs/design-reference-api.md).
 7. [Implementation plan](docs/implementation-plan.md), for how the build is sequenced and verified.
 
 ## What Is Built and What Is Designed
 
 Part 2 of the brief asks for queries, pagination, a summary, authorization, and a board UI. It does not ask for mutations. The line between built and designed follows that, with one addition: a working product needs accounts and a way into an organization, so sign up, organization creation, join requests, project creation, and task creation are built.
 
-| Tier     | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Built    | Schema and migration chain. The API database roles, the runtime login role, row-level security policies, triggers, and the tests tagged Built in the design reference. The request lifecycle. Email and password accounts with rotating refresh tokens. Creating an organization, joining one by request with owner or admin approval, adding an existing user by email, creating a project, and creating a task. The `tasks` query with filters and cursor pagination, `taskSummary`, the board query, overdue, and identifier resolution. The onboarding, dashboard, members, and Task Board screens. |
-| Designed | Task edits, moves, and archive, and status, label, and comment mutations, with their history writes. Rank generation for moves and rebalance, the bulk reopen routine, member role changes and deactivation, and partition maintenance. Each is specified in the design reference.                                                                                                                                                                                                                                                                                                                      |
-| Later    | Project re-key, org soft delete and purge, auto-archive, domain events through an outbox, cross-project move, email verification and password reset, an external identity provider, and the rest of the design reference's Later list. Each has an additive path.                                                                                                                                                                                                                                                                                                                                       |
+| Tier     | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Built    | Schema and migration chain. The API database roles, the runtime login role, row-level security policies, triggers, and the tests tagged Built in the design reference. The request lifecycle. Email and password accounts with rotating refresh tokens. Creating an organization, joining one by request with owner or admin approval, adding an existing user by email, creating a project, and creating a task. The `tasks` query with filters and cursor pagination, `taskSummary`, the board query, overdue, and identifier resolution. The onboarding, dashboard, members, and Task Board screens, with a read-only task details pane. |
+| Designed | Task edits, moves, and archive, and status, label, and comment mutations, with their history writes. Rank generation for moves and rebalance, the bulk reopen routine, member role changes and deactivation, and partition maintenance. Each is specified in the design reference.                                                                                                                                                                                                                                                                                                                                                          |
+| Later    | Project re-key, org soft delete and purge, auto-archive, domain events through an outbox, cross-project move, email verification and password reset, an external identity provider, and the rest of the design reference's Later list. Each has an additive path.                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## Assumptions
 
@@ -59,6 +59,7 @@ Requirements: Node.js 24 and Docker.
 ```bash
 npm install
 cp .env.example .env
+npm run generate   # GraphQL types, the contracts package, and the Prisma client
 npm run db:up      # PostgreSQL 18 and PgBouncer in Docker
 npm run migrate    # applies the Prisma migration chain
 npm run seed       # demo organizations, accounts, and tasks
@@ -103,13 +104,15 @@ After `npm run seed`, every account below uses the password `taskloom-demo-2026`
 │   ├── 2.1-api-design.md
 │   ├── 2.2-ui-architecture.md
 │   ├── 3.1-rfc-board-performance.md
-│   ├── design-reference.md
+│   ├── design-reference.md        index of the two files below
+│   ├── design-reference-data.md
+│   ├── design-reference-api.md
 │   ├── implementation-plan.md
 │   └── ai-transcript/
 ├── packages/contracts/       schema.graphql and TypeScript shared by api and web
 ├── api/
 │   ├── prisma/               schema/ (one file per domain) and migrations
-│   ├── src/modules/          NestJS modules: identity, org, project, task, board
+│   ├── src/modules/          NestJS modules: identity, viewer, organization, membership, project, task, label, user
 │   ├── seed/
 │   └── test/                 integration tests on Testcontainers
 └── web/
@@ -117,11 +120,19 @@ After `npm run seed`, every account below uses the password `taskloom-demo-2026`
     ├── src/features/         auth, onboarding, org, members, task-board
     ├── .storybook/
     ├── e2e/                  Playwright against a mocked API
-    └── e2e-stack/            one Playwright smoke test against the real stack
+    └── e2e-stack/            Playwright on the real stack: auth, org flows, and the seeded board
 ```
+
+## Known Limitations
+
+- **Rate limits live in memory**, so each API instance counts on its own. A shared store (for example Redis) is Later.
+- **The web app's Content-Security-Policy is a meta tag** in the built `index.html`. `frame-ancestors` cannot be set that way; the hosting layer should send the policy as a header.
+- **A dependency advisory is accepted:** the `prisma` CLI pulls in `deepmerge-ts` and `mysql2` versions with advisories. Neither is reachable here (no MySQL; the merge only reads Prisma's own config), and npm's fix is a downgrade to Prisma 6.
+- **The board's assignee filter and New task dialog** offer the organization's first 100 members.
+- **`npm run e2e:stack` writes test accounts** (`e2e-…@example.test`) to whatever database the API uses.
 
 ## Stack
 
-PostgreSQL 18 and PgBouncer in transaction mode. A NestJS 12 API with Apollo Server 5 (schema-first) and Prisma 7. React 19 with Vite, MUI, Apollo Client, and MUI X Charts. Vitest and Testcontainers for tests, Storybook for the design system, and Playwright for end-to-end flows. Node.js 24 and TypeScript 6.
+PostgreSQL 18 and PgBouncer in transaction mode. A NestJS 12 API with Apollo Server 5 (schema-first) and Prisma 7. React 19 with Vite, MUI, Apollo Client, MUI X Charts and Date Pickers, and TanStack Virtual for long columns. Vitest and Testcontainers for tests, Storybook for the design system, and Playwright for end-to-end flows. Node.js 24 and TypeScript 6.
 
 The API is one deployable modular monolith, not a set of services. Composite tenant keys, one read snapshot per request, and row-level security all depend on a single database and a single transaction.

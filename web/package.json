@@ -13,7 +13,8 @@
     "e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "e2e:stack": "playwright test -c playwright.stack.config.ts"
+    "e2e:stack": "playwright test -c playwright.stack.config.ts",
+    "bundle:check": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
     "@apollo/client": "^4.3.1",

@@ -1,6 +1,38 @@
 import react from '@vitejs/plugin-react';
-import { loadEnv } from 'vite';
+import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+
+/**
+ * Content-Security-Policy for the built app (the dev server injects inline scripts for hot reload,
+ * so it gets none). Everything is same-origin: scripts, fonts (bundled), and the API behind the
+ * proxy. Emotion injects <style> tags, so styles need 'unsafe-inline'. frame-ancestors cannot be
+ * set from a meta tag; the host sets it (and this policy, ideally) as a header.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'taskloom-csp',
+    apply: 'build',
+    transformIndexHtml: () => [
+      {
+        tag: 'meta',
+        attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
+        injectTo: 'head-prepend',
+      },
+    ],
+  };
+}
 
 export default defineConfig(({ mode }) => {
   // The browser talks only to this origin; /auth and /graphql are proxied to the API. Same origin
@@ -11,7 +43,7 @@ export default defineConfig(({ mode }) => {
   const proxy = { '/auth': { target }, '/graphql': { target } };
 
   return {
-    plugins: [react()],
+    plugins: [react(), contentSecurityPolicy()],
     envDir: '..',
     server: { port: 5173, strictPort: true, proxy },
     preview: { proxy },

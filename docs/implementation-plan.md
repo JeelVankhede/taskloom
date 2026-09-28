@@ -480,3 +480,15 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Measured (exit) | Seeded ENG (2,500 tasks, 2,360 live), dev server, local API through PgBouncer, 15 cold loads: board visible p50 410 ms, p90 421 ms; `TaskBoard` operation p50 39 ms, p90 45 ms; 172.8 KB; one board request and no column page requests on load. Column paging checked on Backlog (738): 288 positions swept, no gaps, no repeats, about 17 card elements in the DOM. |
 | E2E | CI seeds the database (`npm run seed`) before the real-stack tests; the board test signs in as a demo account and only reads |
 
+
+### Phase 10: Hardening and documentation
+
+| Topic | Decision |
+| --- | --- |
+| CI fix (#12) | Found by CI: on a slow runner, filter changes rendered in React Router's transition made the board query alternate between the old and new filters without settling. Reproduced locally with the CPU slowed 6 times; filters now apply with `flushSync`. The board stack test runs at that slowdown and checks that one filter change sends one board request. |
+| Clean clone | A fresh clone followed the README exactly (with `COMPOSE_PROJECT_NAME=taskloom-clean`, because `docker-compose.yml` pins `name: taskloom` and would otherwise attach to the existing database). Found: `npm test` and `npm run dev` need the contracts package and the Prisma client, which only CI generated; added `npm run generate` and its README step. Then every step passed: install, generate, db:up, migrate, seed (5 s), test (286 API, 112 web), e2e (5), dev, e2e:stack (4). |
+| Security review | No exploitable issue in our code: HS256 pinned with issuer and audience, equal-time sign in, strict rotation, HttpOnly SameSite=Strict cookie on `/auth`, Origin check, tenant context transaction-local, only tagged `$queryRaw`, no HTML sinks. Fixed: the built web app now ships a Content-Security-Policy (meta tag; the mocked e2e suite fails on any violation, checked by a control that removes `'unsafe-inline'`). Recorded: in-memory rate limits; the `prisma` CLI advisory chain (`deepmerge-ts`, `mysql2`: unreachable, and the only fix is a downgrade); sign-up and join-by-slug existence signals (accepted, rate-limited). |
+| Code review | Column paging's effect now depends only on the values it reads. A catalog test guards forced row-level security and the single `tenant` policy for `app_user` on every `org_id` table (1.2 claimed this check; it did not exist). |
+| Bundle budget | Gzipped (Node zlib): main at most 330 kB (303.5 today), the lazy board chunk at most 180 kB (155.9); `npm run bundle:check -w @taskloom/web` runs in CI |
+| Documents | Design reference split into [data](design-reference-data.md) and [API](design-reference-api.md) with section numbers unchanged (every citation still resolves; `design-reference.md` is an index). 1.2 compressed from 2,441 to about 1,220 prose words, keeping cited section numbers. 1.3 analysis 706 words, 2.1 232, 2.2 233 (brief: 500 to 750, 200 to 300, 200 to 300). All 55 relative links resolve; all 24 Built tests exist. |
+| Transcript | Sessions 7 and 8 are one Claude Code session; its export and commentary cover the build |
