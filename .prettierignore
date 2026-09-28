@@ -1,5 +1,6 @@
 node_modules
 dist
+api/dist-seed
 coverage
 docs
 api/src/generated

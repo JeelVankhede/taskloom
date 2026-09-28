@@ -69,6 +69,19 @@ npm run dev        # API on :4000, web app on :5173
 
 `npm run db:reset` re-creates the local databases and reapplies the migrations. It is for local Docker development only.
 
+### Demo accounts
+
+After `npm run seed`, every account below uses the password `taskloom-demo-2026` (local test values). Details: [`api/seed/README.md`](api/seed/README.md).
+
+| Email                                                                             | Shows                                             |
+| --------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `owner@acme.test`, `admin@acme.test`, `member@acme.test`, `contributor@acme.test` | Each role in Acme, which has a 2,500-task project |
+| `owner@globex.test`                                                               | Globex owner with a pending join request          |
+| `both@example.test`                                                               | The organization switcher (member of both)        |
+| `newbie@example.test`                                                             | Onboarding (no organization)                      |
+| `requester@example.test`                                                          | A pending join request                            |
+| `departed@acme.test`                                                              | A deactivated member                              |
+
 `npm run storybook -w @taskloom/web` opens the design system.
 
 ## Repository Layout

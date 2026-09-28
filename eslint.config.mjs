@@ -9,6 +9,7 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      '**/dist-seed/**',
       '**/coverage/**',
       '**/generated/**',
       'api/prisma/migrations/**',
