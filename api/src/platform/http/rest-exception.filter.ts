@@ -5,7 +5,7 @@ import {
   type ExceptionFilter,
   Logger,
 } from '@nestjs/common';
-import { ErrorCode } from '@taskloom/contracts';
+import { type AuthErrorBody, ErrorCode } from '@taskloom/contracts';
 import type { Response } from 'express';
 import { DomainError } from '../errors/domain-error.js';
 
@@ -32,14 +32,15 @@ export class RestExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof DomainError) {
       const statusCode = STATUS[exception.code] ?? 400;
-      res.status(statusCode).json({
+      const body: AuthErrorBody = {
         statusCode,
         code: exception.code,
         message: exception.message,
         ...(exception.code === ErrorCode.VALIDATION_FAILED && exception.detail
-          ? { field: exception.detail }
+          ? { field: exception.detail as AuthErrorBody['field'] }
           : {}),
-      });
+      };
+      res.status(statusCode).json(body);
       return;
     }
     if (exception instanceof BadRequestException) {

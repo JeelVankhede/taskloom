@@ -46,3 +46,19 @@ export function checkSignUp(input: {
   }
   return violations;
 }
+
+/** The REST auth routes (`/auth/signup|signin|refresh`) return this body. */
+export interface AuthSessionBody {
+  accessToken: string;
+  /** Seconds until the access token expires. */
+  expiresIn: number;
+  user: { id: string; email: string; displayName: string };
+}
+
+/** Every REST auth error: the same codes as GraphQL. `field` is set for field validation. */
+export interface AuthErrorBody {
+  statusCode: number;
+  code: string;
+  message: string;
+  field?: AccountRuleViolation['field'];
+}

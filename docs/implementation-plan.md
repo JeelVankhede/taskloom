@@ -426,3 +426,25 @@ Each phase is walked through with the reviewer before it is built. The answers a
 | Summary assignees | Anyone with a matching task, including deactivated members, plus one unassigned entry |
 | Statement ceiling | Counts data statements (resolvers, through `DbContext`), not the 4 fixed lifecycle statements. Board plus summary uses 8 (the summary's assignees resolve in a later tick than the board's, so users batch twice), the same for any project size. The count is logged per request (`statements`). |
 | Measured locally | Seeded ENG (2,500 tasks), compiled API through PgBouncer: board plus summary 20 ms p50, 22 ms p90, 67 KB; each `tasks` order about 5 ms |
+
+### Phase 7: Web foundation
+
+| Topic | Decision |
+| --- | --- |
+| Palette | Material teal primary (`#00796B` light, `#4DB6AC` dark) and a deep orange accent for sparse highlights only (`#C43E0F` light, darkened from deep orange 700 to pass 4.5:1; `#FF8A65` dark), blue-grey neutrals. Priority (red, amber, blue, grey) and status colors never reuse the accent, and each chip also has an icon and a name. |
+| Font | Inter Variable through `@fontsource-variable/inter`: bundled, no external request, `font-display: swap` |
+| Color mode | Follows the system by default; light, system, or dark from the account menu. Stored per browser (`tl-color-mode`), synced across tabs; not an account setting. |
+| Tokens | `design-system/tokens.ts`: palette, priority and label colors, 4 px spacing unit, radius, type scale, z-index, motion (reduced motion honored globally), breakpoints |
+| Components | Button (tones, loading, in-app link), TextField (error and hint wired to `aria-describedby`), Dialog, Card, PageHeader, EmptyState, ErrorState, skeletons, UserChip, PriorityChip, StatusChip, DateBadge (from the date string, never through local time), LabelChip, ColorModeSelect |
+| Accessibility | Every story checked with axe (WCAG 2.1 AA) in both themes: 31 stories, 62 checks, no violations. Storybook's a11y addon is set to `error`. |
+| Access token | In module memory only (`features/auth/session.ts`); the refresh token stays in the API's HttpOnly cookie |
+| Refresh | Once on load, and once on a 401 followed by one retry of the operation. Concurrent callers in a tab share one request; tabs take turns through a Web Lock (`tl-refresh`), each using the cookie the previous tab rotated. Without Web Locks the refresh runs directly. |
+| Sign out | Revokes the session and clears it locally even if the request fails; other tabs sign out too (`BroadcastChannel`). After a deliberate sign out the sign-in page does not keep `?next`, since the next person may be someone else. |
+| API access | Same origin: the Vite dev server (and `vite preview`) proxies `/auth` and `/graphql` to `API_PORT`, forwarding `Origin` unchanged for the API's check. The unused `VITE_API_URL` was removed; the web app has no environment variables. |
+| Org header | Org-scoped operations pass `context: { orgId }` (from the `/o/:orgSlug` route's membership); one link adds the bearer token and `X-Org-Id`. Nothing holds a global "current org". |
+| Landing | `/`: onboarding without memberships, otherwise the last organization used in this browser (`tl-last-org`), else the first. A slug the viewer is not a member of shows "Organization not found" whether or not it exists. |
+| Cache | Cleared whenever the signed-in user changes |
+| Errors | An error boundary on every route; the shell stays usable when a screen crashes |
+| Placeholders | Onboarding, dashboard, and members are placeholders until Phase 8 |
+| E2E | `npm run e2e`: the web app against an in-memory fake of `/auth` and `/graphql` that enforces strict rotation (5 tests, including three tabs loading at once). `npm run e2e:stack`: one smoke test against the real stack. CI runs both in the `e2e` job, the stack test on the compose database. |
+| Bundle | One 918 kB chunk (287 kB gzipped), nearly all libraries (MUI, react-dom, Apollo, Zod, React Router). Route splitting brings little while every route uses MUI; the board and charts in Phase 9 load lazily, and Phase 10 sets a budget. |

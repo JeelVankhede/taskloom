@@ -25,6 +25,7 @@
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces --if-present",
     "e2e": "npm run e2e -w @taskloom/web",
+    "e2e:stack": "npm run e2e:stack -w @taskloom/web",
     "db:reset": "sh scripts/db-reset-dev.sh"
   },
   "lint-staged": {

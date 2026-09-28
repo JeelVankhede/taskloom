@@ -1,12 +1,19 @@
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
+import { ApolloProvider } from '@apollo/client/react';
+import { useState } from 'react';
+import { createBrowserRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { createApolloClient } from './apollo';
+import { routes } from './routes';
+import { SessionGate } from './SessionGate';
 
 export function App() {
+  const [client] = useState(createApolloClient);
+  const [router] = useState(() => createBrowserRouter(routes));
   return (
-    <Container component="main" sx={{ py: 6 }}>
-      <Typography variant="h4" component="h1">
-        Taskloom
-      </Typography>
-    </Container>
+    <ApolloProvider client={client}>
+      <SessionGate>
+        <RouterProvider router={router} />
+      </SessionGate>
+    </ApolloProvider>
   );
 }

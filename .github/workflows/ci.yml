@@ -40,8 +40,16 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      # Local development values: the compose database, the API, and the Vite proxy read them.
+      - run: cp .env.example .env
       - run: npm ci
       - run: npm run build:contracts
       - run: npx playwright install --with-deps chromium
         working-directory: web
+      # The main suite: the web app against a mocked API. No database, fast.
       - run: npm run e2e
+      # One smoke test against the real stack (API, PostgreSQL, PgBouncer, Vite proxy).
+      - run: npm run db:up
+      - run: npm run migrate
+      - run: npm run build -w @taskloom/api
+      - run: npm run e2e:stack
