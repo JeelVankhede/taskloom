@@ -19,6 +19,8 @@ const config: CodegenConfig = {
     // Typed documents for Apollo Client.
     'web/src/generated/': {
       preset: 'client',
+      // Plain types: components receive fragment fields directly (no masking helpers).
+      presetConfig: { fragmentMasking: false },
       documents: ['web/src/**/*.graphql'],
       config: {
         useTypeImports: true,

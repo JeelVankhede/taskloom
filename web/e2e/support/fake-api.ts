@@ -128,26 +128,38 @@ export class FakeApi {
       });
     }
     const { operationName } = route.request().postDataJSON() as { operationName: string };
-    if (operationName !== 'Viewer') {
-      throw new Error(`FakeApi: unexpected operation ${operationName}`);
-    }
+    const orgId = route.request().headers()['x-org-id'];
+    const memberships = account.orgs.map((o) => ({
+      __typename: 'Membership',
+      role: 'MEMBER',
+      organization: { __typename: 'OrganizationSummary', id: `org-${o.slug}`, ...o },
+    }));
+    const viewer = { __typename: 'Viewer', id: account.id };
+    // Only what the auth flows render; org screens are covered against the real API (e2e-stack).
+    const data: Record<string, unknown> = {
+      Viewer: {
+        viewer: { ...viewer, email: account.email, displayName: account.displayName, memberships },
+      },
+      ViewerJoinRequests: { viewer: { ...viewer, memberships, joinRequests: [] } },
+      OrgProjects: {
+        organization: {
+          __typename: 'Organization',
+          id: orgId,
+          projects: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } },
+        },
+      },
+      OrgMembers: {
+        organization: {
+          __typename: 'Organization',
+          id: orgId,
+          members: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } },
+        },
+      },
+    };
+    if (!(operationName in data)) throw new Error(`FakeApi: unexpected operation ${operationName}`);
     return route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({
-        data: {
-          viewer: {
-            __typename: 'Viewer',
-            id: account.id,
-            email: account.email,
-            displayName: account.displayName,
-            memberships: account.orgs.map((o) => ({
-              __typename: 'Membership',
-              role: 'MEMBER',
-              organization: { __typename: 'OrganizationSummary', id: `org-${o.slug}`, ...o },
-            })),
-          },
-        },
-      }),
+      body: JSON.stringify({ data: data[operationName] }),
     });
   }
 }

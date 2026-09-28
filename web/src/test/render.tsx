@@ -3,15 +3,16 @@ import { MockedProvider } from '@apollo/client/testing/react';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createCache } from '../app/apollo';
 import { routes } from '../app/routes';
 import { ThemeProvider } from '../design-system';
 
-/** Renders the real route tree at `path`, with mocked GraphQL responses. */
+/** Renders the real route tree at `path`, with mocked GraphQL responses and the app's cache. */
 export function renderApp(path: string, mocks: MockLink.MockedResponse[] = []) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
     <ThemeProvider>
-      <MockedProvider mocks={mocks}>
+      <MockedProvider mocks={mocks} cache={createCache()}>
         <RouterProvider router={router} />
       </MockedProvider>
     </ThemeProvider>,
